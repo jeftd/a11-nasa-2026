@@ -28,6 +28,9 @@ Open http://localhost:3000.
 - Build: Dockerfile
 - Port: 3000
 - Environment: `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`
+- **Auto-deploy:** every push to `main` runs `.github/workflows/deploy.yml`, which calls the Easypanel
+  deploy webhook stored in the repo secret `EASYPANEL_DEPLOY_WEBHOOK` (Easypanel → service → Deployments →
+  Deploy Webhook). Keep Easypanel's own "Auto Deploy" off to avoid double deploys.
 
 ## Endpoints
 

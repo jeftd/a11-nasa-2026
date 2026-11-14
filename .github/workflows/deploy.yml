@@ -1,0 +1,34 @@
+# Redeploys the Easypanel service (web-hackathon) on every push to main.
+#
+# Setup (once):
+#   1. Easypanel → project → web-hackathon service → Deployments → copy the "Deploy Webhook" URL.
+#   2. GitHub → repo Settings → Secrets and variables → Actions → New repository secret
+#      Name: EASYPANEL_DEPLOY_WEBHOOK   Value: <that URL>
+# Do not also turn on Easypanel's own "Auto Deploy", or each push will deploy twice.
+
+name: Deploy to Easypanel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-easypanel
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger Easypanel deploy webhook
+        env:
+          WEBHOOK: ${{ secrets.EASYPANEL_DEPLOY_WEBHOOK }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "::error::Secret EASYPANEL_DEPLOY_WEBHOOK is not set. See the setup notes at the top of .github/workflows/deploy.yml."
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 30 -X POST "$WEBHOOK"
+          echo "Deploy triggered for commit ${GITHUB_SHA::7}."
