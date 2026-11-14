@@ -35,7 +35,17 @@ Phase 4 — Demo & submission ⏳
 | 04 | [Harmonization approaches](docs/research/04-harmonization-approaches.md) |
 | 05 | [Web app requirements & architecture](docs/research/05-web-app-requirements.md) |
 | 06 | [Submission rules that affect us](docs/research/06-submission-rules.md) |
+| 07 | [Understanding the data (satellites, coverage, a reading, the overlap)](docs/research/07-understanding-the-data.md) |
 | — | [References](docs/research/references.md) |
+
+## Interactive Fire Data Explorer
+
+A 3D globe that shows every satellite's hotspots on a grid, simulates each orbit's coverage over 24 hours,
+and explains every field of a reading. See [web/README.md](web/README.md).
+
+```bash
+python -m http.server 8765 --directory web/explorer
+```
 
 ## Repository structure
 
@@ -53,7 +63,16 @@ Phase 4 — Demo & submission ⏳
 ```bash
 python analysis/sensor_overlap.py --country Mexico --years 2019 2020 2021 2022 2023 2024
 ```
-Requires Python 3.10+ (standard library only). Downloads are cached in `data/raw/`.
+Requires Python 3.10+. `sensor_overlap.py` uses the standard library only; `build_explorer_data.py` also
+needs `numpy`. Downloads are cached in `data/raw/`.
+
+## Configuration (FIRMS API key)
+
+```bash
+cp .env.example .env   # then set FIRMS_MAP_KEY=<your key>
+```
+Get a free key at https://firms.modaps.eosdis.nasa.gov/api/map_key/. `.env` is git-ignored: never commit the key
+or expose it in front-end code. Needed only for recent NRT data and for VIIRS NOAA-21.
 
 ## Data acknowledgment
 

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fire Data Explorer</title>
+  <meta name="description" content="Interactive explorer of MODIS and VIIRS active fire hotspots: satellites, orbits, coverage and the data in each reading. Team A11, NASA Space Apps 2026.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo" aria-hidden="true"></span>
+    <div>
+      <h1>Fire Data Explorer</h1>
+      <p>MODIS &amp; VIIRS active fire hotspots · Team A11 · NASA Space Apps 2026</p>
+    </div>
+  </div>
+  <nav class="jump">
+    <a href="#globe-section">Globe</a>
+    <a href="#satellites">Satellites</a>
+    <a href="#reading">A reading</a>
+    <a href="#overlap">The overlap</a>
+  </nav>
+</header>
+
+<main>
+  <!-- ============================================================ GLOBE -->
+  <section id="globe-section" class="globe-layout">
+    <aside class="panel">
+      <div class="tabs" role="tablist">
+        <button role="tab" class="tab active" data-mode="fires">Hotspots</button>
+        <button role="tab" class="tab" data-mode="sweep">Orbit sweep</button>
+        <button role="tab" class="tab" data-mode="passes">Passes / day</button>
+      </div>
+
+      <!-- Hotspots mode -->
+      <div class="mode-body" data-for="fires">
+        <p class="lead">Every vegetation-fire hotspot detected in <b id="fires-year">2024</b>, counted on a
+          <b>1° × 1° grid</b> (~110 km cells). Pick a satellite and compare: same fires, very different counts.</p>
+        <div class="field-label">Satellite</div>
+        <div id="fire-sat-list" class="sat-list"></div>
+        <div class="legend" id="fire-legend"></div>
+        <div class="stat-grid" id="fire-stats"></div>
+        <p class="hint">Click any cell on the globe to compare all satellites for that place.</p>
+      </div>
+
+      <!-- Sweep mode -->
+      <div class="mode-body hidden" data-for="sweep">
+        <p class="lead">Each satellite flies a <b>polar orbit</b> (~14 laps a day) and images a strip of
+          ground — the <b>swath</b>. Press play to watch the area each one covers over 24 hours.</p>
+        <div class="field-label">Satellites to fly</div>
+        <div id="sweep-sat-list" class="sat-list"></div>
+        <div class="player">
+          <button id="play" class="btn" aria-label="Play">▶</button>
+          <input id="time" type="range" min="0" max="719" value="0" aria-label="Time of day (UTC)">
+          <span id="clock" class="mono">00:00 UTC</span>
+        </div>
+        <div class="field-label">Speed</div>
+        <div class="seg" id="speed">
+          <button data-v="1">1×</button><button data-v="3" class="active">3×</button><button data-v="8">8×</button>
+        </div>
+        <div class="stat-grid" id="sweep-stats"></div>
+        <div class="legend" id="sweep-legend"></div>
+        <p class="hint">Simplified circular-orbit model (period, inclination, swath and equator-crossing time
+          from mission specs). Real orbits shift slightly day to day.</p>
+      </div>
+
+      <!-- Passes mode -->
+      <div class="mode-body hidden" data-for="passes">
+        <p class="lead">Average number of times per day each place is observed. Orbits converge at the poles,
+          so the tropics get the <b>fewest</b> looks — where MODIS even leaves gaps between swaths.</p>
+        <div class="field-label">Satellites (summed)</div>
+        <div id="pass-sat-list" class="sat-list"></div>
+        <div class="seg" id="pass-kind">
+          <button data-v="all" class="active">Day + night</button><button data-v="day">Day only</button>
+        </div>
+        <div class="legend" id="pass-legend"></div>
+        <div class="stat-grid" id="pass-stats"></div>
+      </div>
+
+      <div id="cell-info" class="cell-info hidden"></div>
+    </aside>
+
+    <div class="globe-wrap">
+      <div id="globe"></div>
+      <div id="tooltip" class="tooltip hidden"></div>
+      <div id="loading" class="loading">Loading data…</div>
+    </div>
+  </section>
+
+  <!-- ============================================================ SATELLITES -->
+  <section id="satellites" class="block">
+    <h2>Two instruments, five satellites</h2>
+    <p class="section-lead"><b>MODIS</b> and <b>VIIRS</b> are instruments — thermal cameras. MODIS flies on two NASA
+      satellites since 2000/2002; VIIRS flies on three NOAA/NASA satellites since 2012. All still operate except
+      Suomi NPP, which stopped sending data on <b>2 November 2026</b>.</p>
+    <div class="timeline" id="timeline"></div>
+    <div class="table-wrap">
+      <table class="data" id="sat-table"></table>
+    </div>
+  </section>
+
+  <!-- ============================================================ A READING -->
+  <section id="reading" class="block">
+    <h2>What one reading contains</h2>
+    <p class="section-lead">Each row of a FIRMS file is <b>one fire pixel</b> — a pixel the algorithm flagged as
+      containing at least one fire. Below are real records from 2024. Hover a field to read what it means.</p>
+    <div class="pixel-compare">
+      <div class="pixel-card">
+        <svg viewBox="0 0 220 220" class="pixel-svg" aria-label="MODIS pixel versus VIIRS pixels">
+          <rect x="10" y="10" width="200" height="200" class="px-modis"/>
+          <g class="px-viirs-grid"></g>
+          <circle cx="60" cy="70" r="6" class="fire"/><circle cx="150" cy="60" r="5" class="fire"/>
+          <circle cx="90" cy="160" r="7" class="fire"/><circle cx="170" cy="170" r="4" class="fire"/>
+        </svg>
+        <div>
+          <h3>Same 4 fires, different counts</h3>
+          <p>One <b class="c-modis">MODIS pixel (~1 km)</b> containing 4 small fires produces <b>1 hotspot</b>.
+            VIIRS divides the same area into ~7 × 7 <b class="c-viirs">375 m pixels</b>, so it can report
+            <b>4 hotspots</b> — and it also catches smaller, cooler fires that MODIS misses.</p>
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data fields" id="field-table"></table>
+    </div>
+  </section>
+
+  <!-- ============================================================ OVERLAP -->
+  <section id="overlap" class="block">
+    <h2>The overlap: why harmonization is needed — and possible</h2>
+    <p class="section-lead">Monthly vegetation-fire hotspots in <b>Mexico</b>, 2000–2025, per satellite. VIIRS
+      counts are about <b>4×</b> MODIS for the same months, yet the curves rise and fall together. The years when
+      both observe at the same time (<b>2012 →</b>) are the <b>overlap</b>: they let us learn the conversion
+      between sensors and apply it to the MODIS-only years (2000–2011).</p>
+    <div class="chart-controls">
+      <div class="seg" id="mx-scale"><button data-v="linear" class="active">Linear</button><button data-v="log">Log scale</button></div>
+      <div class="seg" id="mx-agg"><button data-v="month" class="active">Monthly</button><button data-v="year">Yearly</button></div>
+    </div>
+    <div class="chart-box"><canvas id="mx-chart"></canvas></div>
+    <div class="cards-3">
+      <div class="card"><h3>The problem</h3><p>Adding up “all satellites” creates a fake jump in 2012 and 2018 —
+        it looks as if fires multiplied, but only the number and type of sensors changed. Toggle
+        <b>Yearly</b> to see the naive total.</p></div>
+      <div class="card"><h3>The clue</h3><p>In 2019–2024 the MODIS and NOAA-20 monthly series correlate at
+        <b>r ≈ 0.995</b>. They see the same fire seasons; only the scale differs (3.2× – 5.9× by month).</p></div>
+      <div class="card"><h3>The fix</h3><p>Learn the ratio per region and calendar month from the overlap, convert
+        MODIS-era counts to VIIRS-equivalent, and show one continuous 2000 → today calendar.</p></div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>Data: NASA FIRMS — Fire Information for Resource Management System (LANCE / ESDIS). Country yearly summaries,
+    Standard Processing, vegetation fires only (type = 0). Orbit coverage is a simplified simulation.</p>
+  <p>Parts of this page were drafted with AI assistance (Claude, Anthropic) and reviewed by Team A11.</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.46.2/dist/globe.gl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
