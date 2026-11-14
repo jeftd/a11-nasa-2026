@@ -46,9 +46,10 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .pill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;background:var(--surface-2);color:var(--text-2);font-size:12px;font-weight:500;white-space:nowrap}
 .spacer{flex:1}
 .main{display:grid;grid-template-columns:400px minmax(0,1fr);min-height:0}
-.panel{border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;min-height:0}
-.tabs{display:flex;gap:4px;padding:0 16px;border-bottom:1px solid var(--border);flex:none}
-.tabs button{border:0;background:none;padding:12px 8px;color:var(--text-3);font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.panel{border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;min-height:0;min-width:0;container:insp/inline-size}
+.tabs{display:flex;gap:4px;padding:0 16px;border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{white-space:nowrap;flex:none;border:0;background:none;padding:12px 8px;color:var(--text-3);font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--text)}
 .pane{padding:24px;overflow:auto;flex:1;min-height:0}
 .pane[hidden]{display:none}
@@ -116,8 +117,8 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 @media (prefers-reduced-motion:reduce){.fade{animation:none}.stripes .cursor{transition:none}}
 
 /* ---------- season tab ---------- */
-.seg{display:inline-flex;padding:3px;border-radius:8px;background:var(--surface-2);gap:2px}
-.seg button{border:0;background:none;height:28px;padding:0 10px;border-radius:6px;cursor:pointer;font-weight:500;color:var(--text-2)}
+.seg{display:inline-grid;grid-template-columns:auto auto;max-width:100%;padding:3px;border-radius:8px;background:var(--surface-2);gap:2px}
+.seg button{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:0;background:none;height:28px;padding:0 10px;border-radius:6px;cursor:pointer;font-weight:500;color:var(--text-2)}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
 .heat{display:grid;grid-template-columns:44px repeat(12,1fr);gap:1px;margin-top:16px;position:relative}
 .heat .h{font-size:12px;color:var(--text-3);text-align:center;padding-bottom:4px}
@@ -127,7 +128,9 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .heat .c.future{background:transparent!important;box-shadow:inset 0 0 0 1px var(--border)}
 .heat .c.part{background-image:repeating-linear-gradient(45deg,transparent 0 3px,rgba(0,0,0,.18) 3px 5px)}
 .heat .gap{grid-column:1/-1;height:8px}
-.heat .typrow{height:24px;font-size:11px;font-weight:600;display:grid;place-items:center;border-radius:3px}
+.heat .y .sm{display:none}
+@container insp (max-width:380px){.heat .y .lg{display:none}.heat .y .sm{display:inline}}
+.heat .typrow{height:24px;font-size:11px;font-weight:600;display:grid;place-items:center;border-radius:3px;overflow:hidden;white-space:nowrap;letter-spacing:-.02em}
 .eraband{position:absolute;left:0;width:3px;background:var(--text-3);border-radius:2px;opacity:.5}
 .keys{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:12px;font-size:12px;color:var(--text-2)}
 .keys span{display:inline-flex;align-items:center;gap:6px}
@@ -135,12 +138,26 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 
 /* ---------- burn tab ---------- */
 .mgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:16px}
-.mgrid button{height:56px;border:1px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:600;position:relative}
-.mgrid button small{font-weight:400;color:var(--text-3);font-size:12px}
+.mgrid button{min-width:0;height:56px;border:1px solid var(--border);border-radius:8px;background:var(--surface);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:600;position:relative}
+.mgrid button small{font-weight:400;color:var(--text-3);font-size:12px;white-space:nowrap}
+.mgrid button .pk{color:var(--warn);font-weight:600}
+.mgrid button.allow .pk{color:inherit}
+.mcap{margin:16px 0 0;font-size:12px;color:var(--text-3)}
 .mgrid button.allow{background:var(--allow);border-color:var(--allow);color:var(--allow-ink)}
 .mgrid button.allow small{color:inherit;opacity:.85}
 .mgrid button .ck{position:absolute;top:5px;right:5px;width:14px;height:14px}
-.mgrid button.peak::after{content:"Peak";position:absolute;top:-1px;left:50%;transform:translate(-50%,-50%);font-size:10px;font-weight:600;background:var(--surface);color:var(--warn);border:1px solid var(--border);border-radius:999px;padding:0 6px;line-height:14px}
+.mgrid button.peak{box-shadow:inset 0 -3px 0 var(--warn)}
+.stripes .yrs span.end{transform:translateX(-100%)}
+/* Narrow inspector (e.g. with the Ember panel open): tighten so nothing overflows. */
+@container insp (max-width:380px){
+  .pane{padding:20px 16px}
+  .tabs{padding:0 8px;gap:0}.tabs button{padding:12px 7px;font-size:13px}
+  .heat{grid-template-columns:34px repeat(12,1fr)}.heat .y{padding-right:6px}.heat .h{font-size:11px}
+  .heat .typrow{font-size:10px}
+  .seg button{padding:0 8px;font-size:13px}
+  .mgrid{gap:4px}.mgrid button small{font-size:11px}
+  .typ button{font-size:10px;letter-spacing:-.02em}
+}
 .result{margin-top:20px;padding:16px;border-radius:12px;background:var(--surface-2)}
 .result .k{font-size:28px;line-height:34px;font-weight:600}
 .law{font-size:13px;color:var(--text-2)}
@@ -158,7 +175,9 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
 .tip{position:fixed;pointer-events:none;z-index:3000;background:var(--text);color:var(--bg);font-size:12px;line-height:16px;padding:6px 8px;border-radius:6px;display:none;max-width:260px}
 
 /* ---------- responsive ---------- */
+@media (max-width:1200px){.top .hide-s{display:none}.field select{max-width:240px}.top{gap:8px}}
 @media (max-width:1100px){.charts{grid-template-columns:1fr 1fr}.charts .chart:last-child{display:none}}
+@media (max-width:1060px) and (min-width:901px){.brand>span:last-child{display:none}.main{grid-template-columns:360px minmax(0,1fr)}}
 @media (max-width:900px){
   .app{height:auto;grid-template-rows:auto auto}
   .top{flex-wrap:wrap;padding:8px 16px;gap:8px}
@@ -244,7 +263,7 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
         <div class="eyebrow">Fire season</div>
         <p class="sentence" style="margin-top:4px" id="seasonSum"></p>
         <div style="margin-top:16px" class="seg" role="group" aria-label="Colour mode">
-          <button aria-pressed="true" data-mode="count">Hotspot counts</button>
+          <button aria-pressed="true" data-mode="count">Counts</button>
           <button aria-pressed="false" data-mode="anom">Compared with normal</button>
         </div>
         <div class="heat" id="heat"></div>
@@ -256,7 +275,8 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
         <div class="eyebrow">Agricultural burning calendar</div>
         <p class="sentence" style="margin-top:4px">Choose the months you plan to <b>allow</b> agricultural burns. We show how much past fire activity falls in them.</p>
         <p class="law">Municipalities set this calendar every year under <a href="https://www.dof.gob.mx/nota_detalle.php?codigo=5710189&fecha=01/12/2023" target="_blank" rel="noopener">NOM-015-SEMARNAT-AGRICULTURA-2023 §5</a>.</p>
-        <div class="mgrid" id="mgrid"></div>
+        <p class="mcap">% = share of a typical year's hotspots in that month.</p>
+        <div class="mgrid" id="mgrid" style="margin-top:8px"></div>
         <div class="result" id="burnOut"></div>
       </section>
 
@@ -521,7 +541,7 @@ function renderHeat(){
   const pk=(y0,y1)=>{const s=MONTHS.map((_,m)=>{let a=0;for(let y=y0;y<=y1;y++)a+=area.d[y][m];return a});return s.indexOf(Math.max(...s))};
   $('seasonSum').innerHTML=`Fires here concentrate in <b>${FULL[start]}–${FULL[end]}</b>, peaking in <b>${FULL[peak]}</b>. Peak month 2001–10: ${MONTHS[pk(2001,2010)]} · 2016–25: ${MONTHS[pk(2016,2025)]}.`;
   let h='<div></div>'+MONTHS.map(m=>`<div class="h">${m[0]}</div>`).join('');
-  h+='<div class="y" style="line-height:24px">Typical</div>'+t.map((v,m)=>{const bg=countColor(v);return`<div class="typrow" style="background:${bg};color:${ink(bg)}" data-tip="${FULL[m]} · typical ${v}">${v>=1000?Math.round(v/100)/10+'k':v}</div>`}).join('');
+  h+='<div class="y" style="line-height:24px" data-tip="Typical year: median of 2001–2025"><span class="lg">Typical</span><span class="sm">Typ.</span></div>'+t.map((v,m)=>{const bg=countColor(v);return`<div class="typrow" style="background:${bg};color:${ink(bg)}" data-tip="${FULL[m]} · typical ${v}">${v>=1000?Math.round(v/100)/10+'k':v}</div>`}).join('');
   h+='<div class="gap"></div>';
   for(let y=CY;y>=Y0;y--){
     h+=`<div class="y">${y}</div>`;
@@ -545,7 +565,7 @@ function renderHeat(){
 /* ================= burn tab ================= */
 function renderBurn(){
   const mean=MONTHS.map((_,m)=>{let s=0;for(let y=Y0;y<=Y1;y++)s+=area.d[y][m];return s/25}),tot=mean.reduce((a,b)=>a+b,0)||1,peak=mean.indexOf(Math.max(...mean));
-  $('mgrid').innerHTML=MONTHS.map((m,i)=>`<button class="${allowed.has(i)?'allow':''} ${i===peak?'peak':''}" data-m="${i}" aria-pressed="${allowed.has(i)}">${allowed.has(i)?`<svg class="i ck"><use href="#i-check"/></svg>`:''}${m}<small>${Math.round(100*mean[i]/tot)}% of fires</small></button>`).join('');
+  $('mgrid').innerHTML=MONTHS.map((m,i)=>`<button class="${allowed.has(i)?'allow':''} ${i===peak?'peak':''}" data-m="${i}" aria-pressed="${allowed.has(i)}">${allowed.has(i)?`<svg class="i ck"><use href="#i-check"/></svg>`:''}${m}<small>${Math.round(100*mean[i]/tot)}%${i===peak?' · <span class="pk">peak</span>':''}</small></button>`).join('');
   $('mgrid').querySelectorAll('button').forEach(b=>b.onclick=()=>{const m=+b.dataset.m;allowed.has(m)?allowed.delete(m):allowed.add(m);renderBurn()});
   if(!allowed.size){$('burnOut').innerHTML='<span class="muted">Select at least one month.</span>';return}
   const share=[...allowed].reduce((a,m)=>a+mean[m],0)/tot;let e=0,l=0;
@@ -562,7 +582,7 @@ const idx=(y,m)=>(y-Y0)*12+m,TOTAL=idx(CY,NOW_M)+1;
 function renderStripes(){
   let h='';for(let i=0;i<TOTAL;i++){const y=Y0+Math.floor(i/12),m=i%12,c=catOf(area,y,m);h+=`<i style="background:${anomColor(c.k)}" data-tip="${FULL[m]} ${y} · ${CATS[c.k].l}"></i>`}
   $('bars').innerHTML=h;
-  let yh='';for(let y=Y0;y<=CY;y+=5)yh+=`<span style="left:${100*idx(y,0)/TOTAL}%">${y}</span>`;$('yrs').innerHTML=yh;
+  let yh='';for(let y=Y0;y<=CY;y+=5)yh+=`<span class="${100*idx(y,0)/TOTAL>92?'end':''}" style="left:${100*idx(y,0)/TOTAL}%">${y}</span>`;$('yrs').innerHTML=yh;
   $('era').style.left='0';$('era').style.width=(100*idx(2012,0)/TOTAL)+'%';$('era').title='MODIS era, adjusted to VIIRS';
   $('stripes').setAttribute('aria-valuemax',TOTAL-1);
 }

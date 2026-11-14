@@ -12,7 +12,7 @@
   if (!panel || !toggle) return;
 
   const KEY_OPEN = "a11.ember.open", KEY_SID = "a11-chat-session", KEY_LOG = "a11.ember.log";
-  const narrow = () => matchMedia("(max-width: 900px)").matches;
+  const narrow = () => matchMedia("(max-width: 1200px)").matches;
   const get = (k, s) => { try { return (s || localStorage).getItem(k); } catch { return null; } };
   const set = (k, v, s) => { try { (s || localStorage).setItem(k, v); } catch {} };
   const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(16) + Math.random().toString(16).slice(2));

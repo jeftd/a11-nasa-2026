@@ -27,8 +27,8 @@ The browser never sees the n8n URL, the secret, or the model credentials.
 Pattern taken from erp-ai spec 047 ("Acompañante" companion panel).
 
 - **Open/close:** "Ask Ember" in the top bar (`aria-expanded`, `aria-controls`). On desktop the panel is a third
-  grid column that pushes the map (400 / map / 380 px; 340 / map / 340 px at ≤ 1360 px). At ≤ 900 px it is a
-  fixed drawer with a backdrop; Esc or a click on the backdrop closes it and focus returns to the button.
+  grid column that pushes the map (400 / map / 380 px; 340 / map / 340 px at ≤ 1360 px). Below that it is a
+  fixed drawer over the map with a backdrop (≤ 1200 px); Esc or a click on the backdrop closes it and focus returns to the button.
 - **Remembers state:** open/closed in `localStorage` (`a11.ember.open`, desktop only); the conversation and
   `sessionId` in `sessionStorage` (`a11.ember.log`, `a11-chat-session`) so a reload keeps the thread.
 - **Header:** animated Ember whose gesture mirrors the conversation (ready, reading, thinking, still working,
@@ -37,7 +37,7 @@ Pattern taken from erp-ai spec 047 ("Acompañante" companion panel).
   `window.A11Context()` and fires the `a11:context` event whenever the area or month changes.
 - **Messages:** user bubbles, bot replies with safe Markdown (bold, italic, inline code, `-` bullets),
   typing indicator, "Try again" on errors, auto-growing composer (Enter sends, Shift+Enter new line).
-- With the panel open at 901–1700 px the "Notable months" list in the bottom dock is hidden so both charts fit.
+- With the panel open at 1201–1700 px the "Notable months" list in the bottom dock is hidden so both charts fit.
 
 ### Context sent to the agent
 
