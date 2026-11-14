@@ -27,10 +27,17 @@ h1 { font-size: clamp(28px, 5vw, 44px); margin: 8px 0; }
 .card h2 { margin-top: 0; font-size: 20px; }
 
 #chat-toggle {
-  position: fixed; right: 20px; bottom: 20px; width: 56px; height: 56px;
-  border-radius: 50%; border: 0; background: var(--accent); font-size: 24px; cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  position: fixed; right: 20px; bottom: 20px; width: 64px; height: 64px;
+  border-radius: 50%; border: 1px solid var(--border); background: var(--panel); cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0,0,0,.4), 0 0 24px rgba(255,122,26,.18);
+  display: grid; place-items: center; padding: 0;
+  transition: transform .15s ease, box-shadow .15s ease;
 }
+#chat-toggle:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.45), 0 0 32px rgba(255,122,26,.35); }
+#ember-fab { width: 44px; pointer-events: none; }
+.who { display: flex; align-items: center; gap: 10px; }
+#ember-head { width: 30px; display: block; cursor: pointer; }
+.who small { color: var(--muted); font-weight: 400; }
 #chat {
   position: fixed; right: 20px; bottom: 88px; width: min(380px, calc(100vw - 32px)); height: min(520px, 70vh);
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px;

@@ -32,14 +32,42 @@ function add(text, cls) {
   return el;
 }
 
+// Ember, the mascot: launcher button + header avatar. Its gesture mirrors the chat state.
+const hasEmber = typeof window.Ember !== "undefined";
+const fab = hasEmber ? Ember.create($("ember-fab"), { follow: true }) : null;
+const head = hasEmber ? Ember.create($("ember-head"), { follow: true }) : null;
+const status = $("ember-status");
+let settleTimer = null;
+let sleepTimer = null;
+
+function mood(gesture, label, settleAfterMs) {
+  clearTimeout(settleTimer);
+  [fab, head].forEach((m) => m && m.gesture(gesture));
+  if (label) status.textContent = "· " + label;
+  if (settleAfterMs) settleTimer = setTimeout(() => mood("idle", "A11 Assistant"), settleAfterMs);
+  // Doze off after two minutes without activity.
+  clearTimeout(sleepTimer);
+  if (gesture === "idle") sleepTimer = setTimeout(() => mood("sleeping", "napping"), 120_000);
+}
+mood("idle");
+if (head) $("ember-head").onclick = () => head.flare();
+
 $("chat-toggle").onclick = () => {
   panel.hidden = !panel.hidden;
+  if (fab) fab.flare();
   if (!panel.hidden) {
-    if (!log.childElementCount) add("Hi! I'm the A11 assistant. Ask me about MODIS/VIIRS fire hotspots.", "bot");
+    if (!log.childElementCount) add("Hi! I'm Ember, the A11 assistant. Ask me about MODIS/VIIRS fire hotspots.", "bot");
+    mood("curious", "A11 Assistant", 1800);
     input.focus();
   }
 };
-$("chat-close").onclick = () => (panel.hidden = true);
+$("chat-close").onclick = () => {
+  panel.hidden = true;
+  mood("idle", "A11 Assistant");
+};
+input.addEventListener("input", () => {
+  if (input.value.trim()) mood("reading", "reading…", 1500);
+});
 
 form.onsubmit = async (e) => {
   e.preventDefault();
@@ -50,6 +78,8 @@ form.onsubmit = async (e) => {
   const btn = form.querySelector("button");
   btn.disabled = true;
   const typing = add("…", "bot");
+  mood("thinking", "thinking…");
+  const slow = setTimeout(() => mood("working", "working on it…"), 2500);
   try {
     const r = await fetch("/api/chat", {
       method: "POST",
@@ -58,12 +88,21 @@ form.onsubmit = async (e) => {
     });
     const data = await r.json();
     typing.remove();
-    if (!r.ok || data.error) add(data.error || "Something went wrong.", "err");
-    else add(data.reply || "(empty reply)", "bot");
+    if (!r.ok || data.error) {
+      add(data.error || "Something went wrong.", "err");
+      mood("failed", "something went wrong", 3000);
+    } else {
+      add(data.reply || "(empty reply)", "bot");
+      if (/\b(thanks|thank you|gracias)\b/i.test(message)) mood("thankful", "you're welcome", 3000);
+      else if (/\b(fire|fires|hotspot|hotspots|incendio|incendios)\b/i.test(message)) mood("found", "A11 Assistant", 2600);
+      else mood("done", "A11 Assistant", 1600);
+    }
   } catch {
     typing.remove();
     add("Network error. Try again.", "err");
+    mood("sad", "offline", 3000);
   } finally {
+    clearTimeout(slow);
     btn.disabled = false;
     input.focus();
   }

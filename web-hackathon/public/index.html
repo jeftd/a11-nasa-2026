@@ -34,10 +34,10 @@
   </main>
 
   <!-- Chat widget -->
-  <button id="chat-toggle" aria-label="Open assistant">💬</button>
+  <button id="chat-toggle" aria-label="Open assistant"><div id="ember-fab"></div></button>
   <div id="chat" hidden>
     <div class="chat-head">
-      <span>A11 Assistant</span>
+      <span class="who"><span id="ember-head"></span><span>Ember <small id="ember-status">· A11 Assistant</small></span></span>
       <button id="chat-close" aria-label="Close">×</button>
     </div>
     <div id="chat-log" aria-live="polite"></div>
@@ -47,6 +47,7 @@
     </form>
   </div>
 
+  <script src="/ember.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
