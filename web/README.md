@@ -73,3 +73,15 @@ from the FIRMS API.
 
 Phase 3. Requirements and proposed architecture:
 [docs/research/05-web-app-requirements.md](../docs/research/05-web-app-requirements.md).
+
+### `mockup/` — UI design prototype
+
+Clickable mockup of the main app with **illustrative synthetic data**: map canvas, inspector tabs (Overview ·
+Season · Burn calendar · Data) and a 2001→2026 timeline that drives every view. `v1.html` is the first,
+scrolling-page version kept for comparison (see the audit in `docs/research/11-ui-audit-and-references.md`). Design rationale:
+[docs/research/09-user-research-and-use-cases.md](../docs/research/09-user-research-and-use-cases.md) and
+[docs/research/10-interface-design.md](../docs/research/10-interface-design.md).
+
+```bash
+python -m http.server 8770 --directory web/mockup
+```
