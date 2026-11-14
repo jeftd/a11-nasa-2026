@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fire Data Guide</title>
+  <meta name="description" content="Understanding MODIS and VIIRS active fire hotspots before harmonizing them. Team A11, NASA Space Apps 2026.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="guide">
+<header class="top">
+  <div class="brand">
+    <span class="logo" aria-hidden="true"></span>
+    <div>
+      <h1>Fire Data Guide</h1>
+      <p>Understanding MODIS &amp; VIIRS hotspots before harmonizing them · Team A11</p>
+    </div>
+  </div>
+  <nav class="jump">
+    <a href="index.html">← Explorer</a>
+    <a href="#hotspot">Hotspot</a>
+    <a href="#day">Overpasses</a>
+    <a href="#why">Why counts differ</a>
+    <a href="#grid">Pixel demo</a>
+    <a href="#units">Harmonization</a>
+  </nav>
+</header>
+
+<main class="guide-main">
+  <section class="block hero-block">
+    <p class="kicker">Before harmonization</p>
+    <h2>Two sensors, one fire record</h2>
+    <p class="section-lead">The challenge asks for a burning-activity calendar from 2000 to today. MODIS covers the whole
+      period; VIIRS is the future. Before merging them we need to know <b>what each number means</b> and <b>why the two
+      sensors disagree</b>. Every figure on this page comes from FIRMS data we analyzed (2024, Mexico and the globe).</p>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <!-- 1 -->
+  <section class="block" id="hotspot">
+    <h2>1 · What a hotspot is (and is not)</h2>
+    <div class="two-col">
+      <div>
+        <p>A <b>hotspot</b> is one satellite pixel that the detection algorithm flagged as containing <b>at least one
+          active fire</b> at the moment of the overpass. FIRMS gives its center coordinates, time, size and intensity.</p>
+        <ul class="ticks-list">
+          <li><b>It is a snapshot</b>, not a fire event. One wildfire produces many hotspots over many pixels and passes.</li>
+          <li><b>The location is the pixel center</b>, not the exact flame position.</li>
+          <li><b>No hotspot ≠ no fire</b>: the place may have been cloudy, not observed, or the fire too small.</li>
+          <li><b>Do not estimate burned area</b> from hotspot counts (FIRMS recommendation).</li>
+        </ul>
+      </div>
+      <div class="field-cards">
+        <div class="fc"><code>acq_date · acq_time</code><span>When — UTC. Local solar time ≈ UTC + longitude/15.</span></div>
+        <div class="fc"><code>satellite · instrument</code><span>Who — Terra/Aqua (MODIS), N/N20/N21 (VIIRS).</span></div>
+        <div class="fc"><code>scan · track</code><span>Pixel size on the ground in km. Grows toward the swath edge.</span></div>
+        <div class="fc"><code>frp</code><span>Fire Radiative Power (MW) — how intense the fire in the pixel is.</span></div>
+        <div class="fc"><code>confidence</code><span>MODIS 0–100 · VIIRS l/n/h. Must be mapped to common classes.</span></div>
+        <div class="fc"><code>daynight · type</code><span>Day/night pass · 0 = vegetation fire (we keep only 0).</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="block" id="day">
+    <h2>2 · A day of overpasses</h2>
+    <p class="section-lead">Polar satellites cross each place at roughly fixed <b>local solar times</b>. Each pass is a photo
+      taken at a different moment of the fire's daily cycle — fires usually peak in the early afternoon. Below: every pass
+      over one 1° cell in Mexico on a real day, with the number of fire pixels each satellite flagged.</p>
+    <div class="seg" id="day-win"></div>
+    <div class="day-box"><svg id="day-svg" viewBox="0 0 1000 300" preserveAspectRatio="none" aria-label="Overpasses during one day"></svg></div>
+    <p class="hint" id="day-note"></p>
+  </section>
+
+  <!-- 3 -->
+  <section class="block" id="why">
+    <h2>3 · Why MODIS and VIIRS counts differ</h2>
+    <p class="section-lead">Raw counts differ by about <b>4–5×</b>. That gap is not one thing but the product of several
+      effects — each one has to be handled (or at least understood) by the harmonization.</p>
+    <div class="why-grid">
+      <article class="why"><span class="n">a</span><h3>Pixel size → splitting</h3>
+        <p>MODIS pixel ≈ <b>2.06 km²</b> on average, VIIRS ≈ <b>0.23 km²</b> (9× smaller). Where both see the same fire,
+          one MODIS hotspot ≈ <b>2–3 VIIRS hotspots</b>.</p></article>
+      <article class="why"><span class="n">b</span><h3>Sensitivity → extra small fires</h3>
+        <p><b>70%</b> of VIIRS hotspots have no MODIS hotspot within 2 km. They are small, cool fires (median FRP
+          <b>6 MW</b> vs 26 MW for MODIS).</p></article>
+      <article class="why"><span class="n">c</span><h3>Overpass time</h3>
+        <p>Terra (~10:30) catches morning fires, Aqua and VIIRS (~12:40–13:30) the afternoon peak. In 2024 Aqua flagged
+          <b>2.3×</b> more hotspots than Terra with the same instrument.</p></article>
+      <article class="why"><span class="n">d</span><h3>Number of satellites</h3>
+        <p>VIIRS went from 1 satellite (2012) to 2 (2018), 3 (2024) and back to 2 (Nov 2026). Summing satellites
+          creates fake jumps: Mexico 105k → 343k → 517k hotspots/yr.</p></article>
+      <article class="why"><span class="n">e</span><h3>Coverage &amp; swath edge</h3>
+        <p>One MODIS satellite sees the equator ~1.8×/day with gaps; VIIRS 2.2×/day, none. MODIS edge pixels grow to
+          ~2 × 4.8 km; VIIRS stays small.</p></article>
+      <article class="why"><span class="n">f</span><h3>Day vs night</h3>
+        <p>Night share of detections: Terra 40%, Aqua 6%, VIIRS 24%. Night fires are cooler and VIIRS detects them
+          better. Day and night should be analyzed consistently.</p></article>
+    </div>
+    <div class="callout"><b>Same fires?</b> Mostly the big ones. With Aqua vs Suomi NPP (same afternoon), <b>73%</b> of
+      MODIS hotspots have a VIIRS hotspot within 2 km, but only <b>30%</b> of VIIRS hotspots have a MODIS one. VIIRS
+      reports <b>5.6× more pixels</b> yet flags <b>~40% less total area</b>.</div>
+  </section>
+
+  <!-- 4 -->
+  <section class="block" id="grid">
+    <h2>4 · Same fires, two pixel grids</h2>
+    <p class="section-lead">A schematic 3 × 3 km area seen by MODIS (1 km pixels) and VIIRS (375 m pixels). Fires are
+      drawn to scale. A pixel is flagged when the fire area inside it exceeds a fixed fraction of the pixel
+      (0.1% — FIRMS says MODIS routinely detects fires of ~1,000 m² in a 1 km² pixel). <i>Illustrative rule, not
+      the real algorithm.</i></p>
+    <div class="demo">
+      <div class="demo-controls">
+        <label>Number of fires <input type="range" id="d-n" min="1" max="40" value="12"><output id="d-n-o">12</output></label>
+        <label>Typical fire size <input type="range" id="d-s" min="1" max="100" value="35"><output id="d-s-o"></output></label>
+        <button class="btn-sm" id="d-shuffle">Shuffle fires</button>
+        <div class="demo-stats" id="d-stats"></div>
+      </div>
+      <div class="demo-grids">
+        <figure><figcaption>MODIS · 1 km pixels</figcaption><svg id="d-modis" viewBox="0 0 300 300"></svg></figure>
+        <figure><figcaption>VIIRS · 375 m pixels</figcaption><svg id="d-viirs" viewBox="0 0 300 300"></svg></figure>
+      </div>
+    </div>
+    <p class="hint">Try small fires: VIIRS flags them, MODIS does not (sensitivity). Try a few large fires: both flag them,
+      but VIIRS splits each into several pixels (splitting) while MODIS flags more total area.</p>
+  </section>
+
+  <!-- 5 -->
+  <section class="block" id="units">
+    <h2>5 · What we can count — and how we harmonize</h2>
+    <p class="section-lead">The choice of <b>unit</b> decides how much of the sensor difference disappears before any
+      calibration.</p>
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Unit</th><th>Definition</th><th>Removes</th><th>Keeps</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td><b>Pixels</b></td><td>Raw hotspot count</td><td>—</td><td>All differences (4–5×)</td><td>Raw data only</td></tr>
+          <tr><td><b>Fire cells</b></td><td>Grid cells (e.g. 1 km or 0.1°) with ≥ 1 hotspot in a pass/day</td><td>Pixel splitting (a)</td><td>Sensitivity, timing</td><td>Base unit for the calendar</td></tr>
+          <tr><td><b>Fire days</b></td><td>Cell-days with ≥ 1 hotspot from any pass</td><td>Splitting + part of timing/satellite count (c, d)</td><td>Sensitivity (b)</td><td>Robust long-term series</td></tr>
+          <tr><td><b>Calibrated counts</b></td><td>MODIS fire cells × k(region, month) learned on the overlap</td><td>Remaining scale gap</td><td>Uncertainty of k</td><td>2000–today in VIIRS-equivalent units</td></tr>
+          <tr><td><b>Anomaly / percentile</b></td><td>Month vs its own multi-year median</td><td>Any constant scale</td><td>Seasonal pattern</td><td>Calendar colors, “is this month unusual?”</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3 class="sub">Planned pipeline</h3>
+    <ol class="pipeline">
+      <li><b>Filter consistently</b><span>type = 0, same confidence policy, local dates, outage days marked missing.</span></li>
+      <li><b>Fix the satellite set</b><span>MODIS = Terra + Aqua; VIIRS reference = NOAA-20 (continuity); S-NPP to extend the overlap to 2012.</span></li>
+      <li><b>Count fire cells / fire days</b><span>on a common grid, per day, per sensor.</span></li>
+      <li><b>Calibrate on the overlap</b><span>k(region, calendar month) = VIIRS / MODIS, 2012/2018 → 2025, with uncertainty.</span></li>
+      <li><b>Build the series</b><span>VIIRS where available, calibrated MODIS before; flag provenance.</span></li>
+      <li><b>Calendar &amp; anomalies</b><span>year × month heat-map, current month vs historical median.</span></li>
+    </ol>
+  </section>
+
+  <section class="block" id="glossary">
+    <h2>Glossary</h2>
+    <dl class="glossary">
+      <dt>Overpass</dt><dd>One satellite passing over a place; all hotspots it flags at that moment.</dd>
+      <dt>Swath</dt><dd>Strip of ground imaged in one pass (MODIS 2,330 km, VIIRS 3,040 km).</dd>
+      <dt>Nadir / swath edge</dt><dd>Directly below the satellite / the sides of the swath, where pixels are larger.</dd>
+      <dt>FRP</dt><dd>Fire Radiative Power, MW. Proxy of fire intensity; not directly comparable across sensors.</dd>
+      <dt>Overlap period</dt><dd>Years when MODIS and VIIRS both operate (2012 → today) — used to calibrate.</dd>
+      <dt>NRT vs SP</dt><dd>Near-real-time (~3 h, provisional) vs standard processing (science quality, ~5-month lag).</dd>
+      <dt>Local solar time</dt><dd>Time of day from the Sun's position: UTC + longitude / 15 h.</dd>
+    </dl>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>Data: NASA FIRMS (LANCE / ESDIS). Numbers from analysis/sensor_overlap.py, analysis/pixel_matching.py and
+    analysis/build_explorer_data.py (2024 Standard Processing). Section 4 is an illustrative model.</p>
+  <p>Parts of this page were drafted with AI assistance (Claude, Anthropic) and reviewed by Team A11.</p>
+</footer>
+<script src="learn.js"></script>
+</body>
+</html>

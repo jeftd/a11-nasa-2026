@@ -493,7 +493,58 @@
   function windowScene(i) {
     const w = DATA.pixels.windows[i];
     return { pixels: w.pixels, bbox: [w.lon0, w.lat0, w.lon0 + 1, w.lat0 + 1], outline: rectPts(w.lat0, w.lon0, 1),
-             label: `${fmtDate(w.date)} · 1° × 1° example` };
+             label: `${fmtDate(w.date)} · 1° × 1° example`, date: w.date };
+  }
+
+  // ---- overpasses: pixels of one satellite on one date whose times are within 20 min form one pass
+  const tmin = (hhmm) => +hhmm.slice(0, 2) * 60 + +hhmm.slice(2);
+  const hhmm = (m) => `${String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, "0")}:${String(Math.round(((m % 60) + 60) % 60)).padStart(2, "0")}`;
+  function computePasses(sc) {
+    const groups = {};
+    sc.pixels.forEach((p, i) => {
+      const key = p[4] + "|" + (p[9] || sc.date);
+      (groups[key] = groups[key] || []).push(i);
+    });
+    const passes = [];
+    sc.passOf = new Int32Array(sc.pixels.length);
+    for (const [key, idx] of Object.entries(groups)) {
+      const [sat, day] = key.split("|");
+      idx.sort((a, b) => tmin(sc.pixels[a][5]) - tmin(sc.pixels[b][5]));
+      let cur = null;
+      for (const i of idx) {
+        const t = tmin(sc.pixels[i][5]);
+        if (!cur || t - cur.t1 > 20) { cur = { sat, day, t0: t, t1: t, n: 0, lonSum: 0, night: 0 }; passes.push(cur); }
+        cur.t1 = t; cur.n++; cur.lonSum += sc.pixels[i][1]; cur.night += sc.pixels[i][8] === "N" ? 1 : 0;
+        sc.passOf[i] = passes.length - 1;
+      }
+    }
+    // local solar time ≈ UTC + longitude / 15
+    passes.forEach((p, k) => { p.local = p.t0 + (p.lonSum / p.n) / 15 * 60; p.k = k; });
+    const order = [...passes].sort((a, b) => (a.day + hhmm(a.t0)).localeCompare(b.day + hhmm(b.t0)));
+    sc.passes = passes; sc.passOrder = order; sc.passOn = new Set(passes.map((p) => p.k));
+  }
+  function buildPassList() {
+    const box = $("#pix-passes");
+    if (!scene || !scene.passes) { box.innerHTML = ""; return; }
+    const multiDay = new Set(scene.passes.map((p) => p.day)).size > 1;
+    box.innerHTML = `<div class="pass-tools"><button class="btn-sm ghost" data-a="all">All</button><button class="btn-sm ghost" data-a="none">None</button>
+        <span class="hint" style="margin:0">Click a time to show only that pass</span></div>` +
+      scene.passOrder.map((p) => {
+        const S = SATS[p.sat], night = p.night > p.n / 2;
+        return `<label class="pass-row ${scene.passOn.has(p.k) ? "on" : ""}" data-k="${p.k}">
+          <input type="checkbox" ${scene.passOn.has(p.k) ? "checked" : ""}>
+          <span class="sw" style="background:${S.color}"></span>
+          <span class="pass-time" title="Show only this pass"><b>${hhmm(p.local)}</b> local</span>
+          <span class="pass-meta">${S.label} · ${hhmm(p.t0)} UTC${multiDay ? " · " + p.day.slice(5) : ""} · ${night ? "☾" : "☀"}</span>
+          <span class="pass-n">${p.n} px</span></label>`;
+      }).join("");
+    box.querySelectorAll(".pass-row").forEach((row) => {
+      const k = +row.dataset.k;
+      row.querySelector("input").addEventListener("change", (e) => { e.target.checked ? scene.passOn.add(k) : scene.passOn.delete(k); renderPixels(false); });
+      row.querySelector(".pass-time").addEventListener("click", (e) => { e.preventDefault(); scene.passOn = new Set([k]); renderPixels(false); });
+    });
+    box.querySelector('[data-a="all"]').onclick = () => { scene.passOn = new Set(scene.passes.map((p) => p.k)); renderPixels(false); };
+    box.querySelector('[data-a="none"]').onclick = () => { scene.passOn = new Set(); renderPixels(false); };
   }
 
   async function buildPixelsUI() {
@@ -596,7 +647,7 @@
       if (!r.ok || j.error) throw new Error(j.error || r.status);
       $$("#pix-windows .win-btn").forEach((x) => x.classList.remove("active"));
       const lab = `${fmtDate(start)}${+days > 1 ? ` + ${days - 1} day${days > 2 ? "s" : ""}` : ""} · your area · ${source === "firms" ? "FIRMS API" : "local index"}`;
-      scene = { pixels: j.pixels, bbox: j.bbox, outline: polyOutline(v), label: lab };
+      scene = { pixels: j.pixels, bbox: j.bbox, outline: polyOutline(v), label: lab, date: start };
       status.innerHTML = `<b>${fmt(j.count)}</b> pixels found${j.truncated ? ` (showing ${fmt(j.returned)} — draw a smaller area or fewer days for all)` : ""}.`;
       renderPixels(true);
     } catch (e) {
@@ -614,10 +665,13 @@
     if (!globeReady || mode !== "pixels") return;
     paintGrid(1, 1, () => null);
     if (draw.active || !scene) { globe.polygonsData([]); renderDraw(); return; }
+    if (!scene.passes) computePasses(scene);
+    buildPassList();
     const polys = [], stats = {};
-    for (const p of scene.pixels) {
+    for (let pi = 0; pi < scene.pixels.length; pi++) {
+      const p = scene.pixels[pi];
       const [lat, lon, scan, track, sat, time, frp, conf, dn, day] = p;
-      if (!pixSats.includes(sat)) continue;
+      if (!pixSats.includes(sat) || !scene.passOn.has(scene.passOf[pi])) continue;
       const dLat = track / 111.32 / 2, dLon = scan / (111.32 * Math.cos(lat * Math.PI / 180)) / 2;
       polys.push({ type: "Feature", properties: { sat, time, frp, conf, dn, scan, track, lat, lon, day },
         // clockwise ring (d3-geo spherical convention), otherwise it is read as the complement of the box
@@ -637,7 +691,8 @@
         return `<div style="background:#0b0e14ee;border:1px solid #243046;border-radius:8px;padding:8px 10px;font:12.5px Inter,sans-serif;color:#e6ebf3">
           <b style="color:${S.color}">${S.label}</b> · ${S.inst}${q.day ? " · " + q.day : ""}<br>
           Pixel <b>${q.scan.toFixed(2)} × ${q.track.toFixed(2)} km</b> = ${(q.scan * q.track).toFixed(2)} km²<br>
-          ${q.time.slice(0, 2)}:${q.time.slice(2)} UTC · ${q.dn === "N" ? "night" : "day"} · FRP ${q.frp} MW · conf ${q.conf}<br>
+          <b>${hhmm(tmin(q.time) + q.lon / 15 * 60)} local</b> (${q.time.slice(0, 2)}:${q.time.slice(2)} UTC) · ${q.dn === "N" ? "night" : "day"}<br>
+          FRP ${q.frp} MW · confidence ${q.conf}<br>
           <span style="color:#93a0b6;font-family:'JetBrains Mono',monospace">${q.lat.toFixed(4)}, ${q.lon.toFixed(4)}</span></div>`;
       })
       .onPolygonClick((p, ev, c) => { if (draw.active && c) addVertex(c.lat, c.lng); });

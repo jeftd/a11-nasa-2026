@@ -19,7 +19,15 @@ An interactive 3D globe to understand the raw data before harmonizing it:
 - **Grid cell size** — 1°, 0.5°, 0.2° or 0.1° (≈ 11 km). Zoom in to see the grid lines; hovering a cell shows its
   real size in km.
 - **Real pixels** — draw a polygon on the globe, pick a date and 1–5 days, and load every real fire pixel inside it,
-  drawn with its true footprint (`scan × track` km). Or open one of the Mexico examples.
+  drawn with its true footprint (`scan × track` km). Or open one of the Mexico examples. The **overpass filter** lists
+  every pass (satellite + local solar time) so passes taken hours apart are not mixed; click a time to show only it.
+
+## `explorer/learn.html` — Fire Data Guide
+
+English primer for the harmonization phase: what a hotspot is, a real day of overpasses over one cell, the six reasons
+MODIS and VIIRS counts differ (with our measured numbers), an interactive *same fires, two pixel grids* demo, the
+counting units (pixels, fire cells, fire days, calibrated counts, anomalies) and the planned pipeline.
+Open it from the explorer header (**Data guide →**) or at http://localhost:8765/learn.html.
 
 ### Run locally
 
