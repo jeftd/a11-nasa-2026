@@ -11,6 +11,12 @@ Clickable mockup (illustrative synthetic data): [web-hackathon/public/index.html
 > season-profile and annual charts and a "notable months" list. Inter, warm-stone neutrals, achromatic chrome,
 > theme-aware data ramps, Esri gray canvas basemap, light theme by default. The first version is kept at
 > `web/mockup/v1.html`. Sections 2–3 below describe v1's layout; the goals, states and rules still apply.
+>
+> **Update (assistant).** Ember, the AI assistant, lives in a **collapsible right sidebar** opened from "Ask Ember"
+> in the top bar (pattern from erp-ai spec 047): it pushes the map on desktop, becomes a drawer on phones,
+> remembers if it was open, shows what the user is viewing, offers suggestions for that area and month, and sends
+> that on-screen context with every question so answers refer to the numbers on screen. Details:
+> [web-hackathon/README.md](../../web-hackathon/README.md#ember-assistant-sidebar).
 
 ## 1. Design principles (from the research)
 

@@ -78,7 +78,8 @@ Phase 3. Requirements and proposed architecture:
 
 The clickable prototype of the main app now lives in
 [`web-hackathon/public/index.html`](../web-hackathon/public/index.html) and is the deployed site's home page
-(with the Ember chat widget). It uses **illustrative synthetic data**: map canvas, inspector tabs (Overview ·
+(with Ember, the assistant, in a collapsible right sidebar — see
+[web-hackathon/README.md](../web-hackathon/README.md#ember-assistant-sidebar)). It uses **illustrative synthetic data**: map canvas, inspector tabs (Overview ·
 Season · Burn calendar · Data) and a 2001→2026 timeline that drives every view. `mockup/v1.html` is the first,
 scrolling-page version kept for comparison (see the audit in `docs/research/11-ui-audit-and-references.md`).
 Design rationale: [docs/research/09-user-research-and-use-cases.md](../docs/research/09-user-research-and-use-cases.md)
