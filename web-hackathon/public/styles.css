@@ -55,3 +55,4 @@ h1 { font-size: clamp(28px, 5vw, 44px); margin: 8px 0; }
 #chat-input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
 #chat-form button { padding: 0 14px; border-radius: 8px; border: 0; background: var(--accent); font-weight: 600; cursor: pointer; }
 #chat-form button:disabled { opacity: .5; cursor: wait; }
+.msg code { font-family: ui-monospace, Consolas, monospace; background: rgba(255,255,255,.08); padding: 0 4px; border-radius: 4px; }

@@ -23,10 +23,20 @@ if (!sessionId) {
   try { sessionStorage.setItem("a11-chat-session", sessionId); } catch {}
 }
 
+// Tiny, safe markdown for bot replies: escape everything first, then allow bold, italic and inline code.
+function renderMarkdown(text) {
+  const esc = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return esc
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+}
+
 function add(text, cls) {
   const el = document.createElement("div");
   el.className = "msg " + cls;
-  el.textContent = text;
+  if (cls === "bot") el.innerHTML = renderMarkdown(text);
+  else el.textContent = text;
   log.appendChild(el);
   log.scrollTop = log.scrollHeight;
   return el;
