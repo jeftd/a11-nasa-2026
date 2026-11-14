@@ -35,7 +35,8 @@
       ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 5000
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -63,11 +64,19 @@
               "id": "a4",
               "name": "csv",
               "type": "string",
-              "value": "={{ $json.data }}"
+              "value": "={{ $json.data ?? ('DOWNLOAD ERROR ' + JSON.stringify($json.error ?? $json)) }}"
+            },
+            {
+              "id": "a5",
+              "name": "run_id",
+              "type": "number",
+              "value": "={{ $('When called').item.json.run_id ?? null }}"
             }
           ]
         },
-        "options": {}
+        "options": {
+          "ignoreConversionErrors": true
+        }
       },
       "name": "Shape row",
       "type": "n8n-nodes-base.set",

@@ -1,0 +1,101 @@
+{
+  "name": "A11 DB status",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Run",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT 'hotspots' AS what, satellite || ' ' || processing AS k, min(acq_date)::text AS from_date,\n       max(acq_date)::text AS to_date, count(*) AS n FROM hotspots GROUP BY 2\nUNION ALL SELECT 'load_runs', status, min(finished_at)::text, max(finished_at)::text, count(*) FROM load_runs GROUP BY 2\nUNION ALL SELECT 'staging', 'pending', null, null, count(*) FROM staging_csv\nUNION ALL SELECT 'grid', 'rows', null, null, count(*) FROM monthly_grid\nORDER BY 1, 2;",
+        "options": {}
+      },
+      "name": "Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        -200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "vc9QesVEe9bgweDY",
+          "name": "a11-db"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT pipeline_status_json() AS status;",
+        "options": {}
+      },
+      "name": "Pipeline status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "vc9QesVEe9bgweDY",
+          "name": "a11-db"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, run_id, source, message FROM load_runs WHERE status <> 'ok' ORDER BY id DESC LIMIT 20;",
+        "options": {}
+      },
+      "name": "Errors",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "vc9QesVEe9bgweDY",
+          "name": "a11-db"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Run": {
+      "main": [
+        [
+          {
+            "node": "Status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Pipeline status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

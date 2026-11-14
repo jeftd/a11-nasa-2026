@@ -21,13 +21,34 @@
     },
     {
       "parameters": {
-        "jsCode": "// Last 2 days of Near Real-Time hotspots over Mexico. Duplicates are ignored by the database.\nconst BBOX = '-118.5,14.5,-86.7,32.8';\nconst api = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';\nreturn ['MODIS_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT'].map(s => ({ json: {\n  url: `${api}/{KEY}/${s}/${BBOX}/2`,\n  source: `api:${s}/${BBOX}/2@${new Date().toISOString().slice(0, 10)}`,\n  processing: 'NRT',\n  country: 'Mexico (bbox)',\n}}));"
+        "operation": "executeQuery",
+        "query": "=SELECT start_pipeline_run('daily_nrt', '{{ $execution.mode }}', '{{ $execution.id }}') AS run_id;",
+        "options": {}
+      },
+      "name": "Start run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "vc9QesVEe9bgweDY",
+          "name": "a11-db"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const runId = $('Start run').first().json.run_id;\n// Last 2 days of Near Real-Time hotspots over Mexico. Duplicates are ignored by the database.\nconst BBOX = '-118.5,14.5,-86.7,32.8';\nconst api = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';\nreturn ['MODIS_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT'].map(s => ({ json: {\n  url: `${api}/{KEY}/${s}/${BBOX}/2`,\n  source: `api:${s}/${BBOX}/2@${new Date().toISOString().slice(0, 10)}`,\n  processing: 'NRT',\n  country: 'Mexico (bbox)',\n  run_id: runId,\n}}));"
       },
       "name": "List sources",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
+        440,
         0
       ]
     },
@@ -47,7 +68,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        440,
+        660,
         0
       ]
     },
@@ -61,7 +82,28 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        660,
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "vc9QesVEe9bgweDY",
+          "name": "a11-db"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT * FROM finish_pipeline_run({{ $('Start run').first().json.run_id }}, {{ $('List sources').all().length }}, {{ $json.nrt_removed ?? 'NULL' }});",
+        "options": {}
+      },
+      "name": "Finish run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
         0
       ],
       "credentials": {
@@ -75,6 +117,17 @@
   ],
   "connections": {
     "Every day 06:00": {
+      "main": [
+        [
+          {
+            "node": "Start run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start run": {
       "main": [
         [
           {
@@ -106,9 +159,21 @@
           }
         ]
       ]
+    },
+    "Refresh grid": {
+      "main": [
+        [
+          {
+            "node": "Finish run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "errorWorkflow": "o8c3nl6MRhfGfRqL"
   }
 }

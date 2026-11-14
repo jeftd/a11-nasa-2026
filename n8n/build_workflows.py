@@ -38,6 +38,8 @@ def link(*names):
 
 
 def pg_query(name, pos, sql, **extra):
+    if "{{" in sql:  # n8n treats a parameter as an expression only when it starts with "="
+        sql = "=" + sql
     return node(name, "n8n-nodes-base.postgres", 2.5, pos,
                 {"operation": "executeQuery", "query": sql, "options": {}},
                 credentials=PG_CRED, **extra)
@@ -55,7 +57,7 @@ setup = {
 }
 
 # --- 2. Sub-workflow: download one CSV and load it ----------------------------------------------
-# Input item: { url, source, processing, country }. url may contain {KEY} for the FIRMS MAP_KEY.
+# Input item: { url, source, processing, country, run_id }. url may contain {KEY} for the FIRMS MAP_KEY.
 loader = {
     "name": "A11 Load FIRMS CSV",
     "nodes": [
@@ -67,7 +69,7 @@ loader = {
                 "response": {"response": {"responseFormat": "text", "outputPropertyName": "data"}},
                 "timeout": 180000,
             },
-        }, retryOnFail=True, maxTries=3, waitBetweenTries=5000),
+        }, retryOnFail=True, maxTries=3, waitBetweenTries=5000, onError="continueRegularOutput"),
         node("Shape row", "n8n-nodes-base.set", 3.4, [440, 0], {
             "assignments": {"assignments": [
                 {"id": "a1", "name": "source", "type": "string",
@@ -76,9 +78,13 @@ loader = {
                  "value": "={{ $('When called').item.json.processing }}"},
                 {"id": "a3", "name": "country", "type": "string",
                  "value": "={{ $('When called').item.json.country }}"},
-                {"id": "a4", "name": "csv", "type": "string", "value": "={{ $json.data }}"},
+                # A failed download is staged as an error text; load_staged() logs it as status 'error'.
+                {"id": "a4", "name": "csv", "type": "string",
+                 "value": "={{ $json.data ?? ('DOWNLOAD ERROR ' + JSON.stringify($json.error ?? $json)) }}"},
+                {"id": "a5", "name": "run_id", "type": "number",
+                 "value": "={{ $('When called').item.json.run_id ?? null }}"},
             ]},
-            "options": {},
+            "options": {"ignoreConversionErrors": True},
         }),
         node("Stage CSV", "n8n-nodes-base.postgres", 2.5, [660, 0], {
             "schema": {"__rl": True, "mode": "list", "value": "public"},
@@ -91,6 +97,20 @@ loader = {
     "connections": link("When called", "Download CSV", "Shape row", "Stage CSV", "Parse into hotspots"),
     "settings": SETTINGS_QUIET,
 }
+
+def start_run(pipeline, pos):
+    sql = (f"SELECT start_pipeline_run('{pipeline}', '{{{{ $execution.mode }}}}', "
+           "'{{ $execution.id }}') AS run_id;")
+    return pg_query("Start run", pos, sql, executeOnce=True)
+
+
+def finish_run(list_node, pos):
+    sql = ("SELECT * FROM finish_pipeline_run({{ $('Start run').first().json.run_id }}, "
+           f"{{{{ $('{list_node}').all().length }}}}, {{{{ $json.nrt_removed ?? 'NULL' }}}});")
+    return pg_query("Finish run", pos, sql, executeOnce=True)
+
+
+RUN_ID_JS = "const runId = $('Start run').first().json.run_id;\n"
 
 CALL_LOADER = {
     "workflowId": {"__rl": True, "mode": "id", "value": "g8PK6cZ7WiIK8N3w"},
@@ -113,7 +133,7 @@ if (DO_COUNTRY_FILES) {
   for (const [p, y0, y1] of products) {
     for (let y = y0; y <= y1; y++) {
       const url = `${base}/${p}/${y}/${p}_${y}_${COUNTRY}.csv`;
-      items.push({ url, source: url, processing: 'SP', country: COUNTRY });
+      items.push({ url, source: url, processing: 'SP', country: COUNTRY, run_id: runId });
     }
   }
 }
@@ -128,7 +148,8 @@ if (DO_CURRENT_YEAR_API) {
     for (const s of sources) {
       const path = `${s}/${BBOX}/5/${day}`;
       items.push({ url: `${api}/{KEY}/${path}`, source: `api:${path}`,
-                   processing: s.endsWith('_SP') ? 'SP' : 'NRT', country: `${COUNTRY} (bbox)` });
+                   processing: s.endsWith('_SP') ? 'SP' : 'NRT', country: `${COUNTRY} (bbox)`,
+                   run_id: runId });
     }
   }
 }
@@ -139,12 +160,14 @@ backfill = {
     "name": "A11 Historical backfill (Mexico)",
     "nodes": [
         node("Run once", "n8n-nodes-base.manualTrigger", 1, [0, 0], {}),
-        node("List files", "n8n-nodes-base.code", 2, [220, 0], {"jsCode": BACKFILL_JS.strip()}),
-        node("Load each", "n8n-nodes-base.executeWorkflow", 1.2, [440, 0], CALL_LOADER),
-        pg_query("Refresh grid", [660, 0], "SELECT * FROM refresh_after_load();", executeOnce=True),
+        start_run("historical_backfill", [220, 0]),
+        node("List files", "n8n-nodes-base.code", 2, [440, 0], {"jsCode": RUN_ID_JS + BACKFILL_JS.strip()}),
+        node("Load each", "n8n-nodes-base.executeWorkflow", 1.2, [660, 0], CALL_LOADER),
+        pg_query("Refresh grid", [880, 0], "SELECT * FROM refresh_after_load();", executeOnce=True),
+        finish_run("List files", [1100, 0]),
     ],
-    "connections": link("Run once", "List files", "Load each", "Refresh grid"),
-    "settings": {"executionOrder": "v1"},
+    "connections": link("Run once", "Start run", "List files", "Load each", "Refresh grid", "Finish run"),
+    "settings": {"executionOrder": "v1", "errorWorkflow": "o8c3nl6MRhfGfRqL"},
 }
 
 # --- 4. Daily NRT -------------------------------------------------------------------------------
@@ -157,6 +180,7 @@ return ['MODIS_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT'].map(s => ({ json: {
   source: `api:${s}/${BBOX}/2@${new Date().toISOString().slice(0, 10)}`,
   processing: 'NRT',
   country: 'Mexico (bbox)',
+  run_id: runId,
 }}));
 """
 
@@ -165,16 +189,54 @@ daily = {
     "nodes": [
         node("Every day 06:00", "n8n-nodes-base.scheduleTrigger", 1.2, [0, 0],
              {"rule": {"interval": [{"triggerAtHour": 6}]}}),
-        node("List sources", "n8n-nodes-base.code", 2, [220, 0], {"jsCode": DAILY_JS.strip()}),
-        node("Load each", "n8n-nodes-base.executeWorkflow", 1.2, [440, 0], CALL_LOADER),
-        pg_query("Refresh grid", [660, 0], "SELECT * FROM refresh_after_load();", executeOnce=True),
+        start_run("daily_nrt", [220, 0]),
+        node("List sources", "n8n-nodes-base.code", 2, [440, 0], {"jsCode": RUN_ID_JS + DAILY_JS.strip()}),
+        node("Load each", "n8n-nodes-base.executeWorkflow", 1.2, [660, 0], CALL_LOADER),
+        pg_query("Refresh grid", [880, 0], "SELECT * FROM refresh_after_load();", executeOnce=True),
+        finish_run("List sources", [1100, 0]),
     ],
-    "connections": link("Every day 06:00", "List sources", "Load each", "Refresh grid"),
+    "connections": link("Every day 06:00", "Start run", "List sources", "Load each", "Refresh grid", "Finish run"),
+    "settings": {"executionOrder": "v1", "errorWorkflow": "o8c3nl6MRhfGfRqL"},
+}
+
+# --- 5. DB status (manual check) ---------------------------------------------------------------
+STATUS_SQL = """SELECT 'hotspots' AS what, satellite || ' ' || processing AS k, min(acq_date)::text AS from_date,
+       max(acq_date)::text AS to_date, count(*) AS n FROM hotspots GROUP BY 2
+UNION ALL SELECT 'load_runs', status, min(finished_at)::text, max(finished_at)::text, count(*) FROM load_runs GROUP BY 2
+UNION ALL SELECT 'staging', 'pending', null, null, count(*) FROM staging_csv
+UNION ALL SELECT 'grid', 'rows', null, null, count(*) FROM monthly_grid
+ORDER BY 1, 2;"""
+
+status = {
+    "name": "A11 DB status",
+    "nodes": [
+        node("Run", "n8n-nodes-base.manualTrigger", 1, [0, 0], {}),
+        pg_query("Status", [220, -200], STATUS_SQL),
+        pg_query("Pipeline status", [220, 0], "SELECT pipeline_status_json() AS status;"),
+        pg_query("Errors", [220, 200],
+                 "SELECT id, run_id, source, message FROM load_runs WHERE status <> 'ok' ORDER BY id DESC LIMIT 20;"),
+    ],
+    "connections": {"Run": {"main": [[{"node": n, "type": "main", "index": 0}
+                                       for n in ("Status", "Pipeline status", "Errors")]]}},
+    "settings": {"executionOrder": "v1"},
+}
+
+# --- 6. Error handler: marks the pipeline run as failed when a parent workflow crashes ------------
+errors = {
+    "name": "A11 Pipeline error handler",
+    "nodes": [
+        node("On workflow error", "n8n-nodes-base.errorTrigger", 1, [0, 0], {}),
+        pg_query("Mark run failed", [220, 0],
+                 "SELECT * FROM fail_pipeline_run('{{ $json.execution.id }}', "
+                 "$msg${{ $json.execution.lastNodeExecuted }}: {{ $json.execution.error.message }}$msg$);"),
+    ],
+    "connections": link("On workflow error", "Mark run failed"),
     "settings": {"executionOrder": "v1"},
 }
 
 OUT.mkdir(exist_ok=True)
 for fname, wf in [("01-db-setup.json", setup), ("02-load-firms-csv.json", loader),
-                  ("03-historical-backfill.json", backfill), ("04-daily-nrt.json", daily)]:
+                  ("03-historical-backfill.json", backfill), ("04-daily-nrt.json", daily),
+                  ("05-db-status.json", status), ("06-pipeline-error-handler.json", errors)]:
     (OUT / fname).write_text(json.dumps(wf, indent=2), encoding="utf-8")
     print("wrote", fname)
