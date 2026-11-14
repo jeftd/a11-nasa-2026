@@ -1,0 +1,80 @@
+/* Ember assistant: collapsible right sidebar (pattern from erp-ai spec 047 "Acompañante").
+   Desktop: a third grid column that pushes the map. ≤ 900 px: a fixed drawer over the page with a backdrop. */
+
+.app.cmp-open .main { grid-template-columns: 400px minmax(0, 1fr) 380px; }
+@media (max-width: 1360px) { .app.cmp-open .main { grid-template-columns: 340px minmax(0, 1fr) 340px; } }
+/* With the panel open the dock is narrower: keep the two charts, drop the notable-months list. */
+@media (min-width: 901px) and (max-width: 1700px) {
+  .app.cmp-open .charts { grid-template-columns: 1fr 1fr; }
+  .app.cmp-open .charts .chart:last-child { display: none; }
+}
+
+.ember-panel {
+  grid-column: 3; display: flex; flex-direction: column; min-height: 0; min-width: 0;
+  background: var(--surface); border-left: 1px solid var(--border);
+}
+.ember-panel[hidden] { display: none; }
+
+.ember-head { display: flex; align-items: center; gap: 10px; height: 45px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--border); flex: none; }
+.ember-av { width: 26px; flex: none; display: block; }
+.ember-title { flex: 1; min-width: 0; display: grid; line-height: 1.15; }
+.ember-name { font-weight: 600; }
+.ember-state { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--text-2); width: 32px; height: 32px; }
+.btn.ghost:hover { background: var(--surface-2); color: var(--text); }
+
+.ember-context { display: flex; align-items: center; gap: 6px; margin: 0; padding: 8px 16px; font-size: 12px; color: var(--text-3); border-bottom: 1px solid var(--border); flex: none; min-width: 0; }
+.ember-context span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ember-context strong { color: var(--text-2); font-weight: 500; }
+.ember-context:empty { display: none; }
+
+.ember-body { flex: 1; min-height: 0; overflow-y: auto; }
+.ember-welcome { padding: 28px 16px 16px; display: grid; gap: 12px; }
+.ember-welcome[hidden] { display: none; }
+.ember-welcome h3 { margin: 0; font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -.01em; }
+.ember-welcome p { margin: 0; color: var(--text-2); }
+.ember-sugg { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.ember-sugg button {
+  width: 100%; text-align: left; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); cursor: pointer; line-height: 20px;
+}
+.ember-sugg button:hover { background: var(--surface-2); }
+
+.ember-log { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+.ember-log:empty { display: none; }
+.ember-msg { max-width: 100%; white-space: pre-wrap; word-wrap: break-word; line-height: 22px; }
+.ember-msg.user { align-self: flex-end; max-width: 88%; padding: 8px 12px; border-radius: 14px 14px 4px 14px; background: var(--text); color: var(--bg); }
+.ember-msg.bot { align-self: flex-start; color: var(--text); }
+.ember-msg.bot code, .ember-msg.user code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; background: var(--surface-2); padding: 0 4px; border-radius: 4px; }
+.ember-msg.user code { background: rgba(255, 255, 255, .15); }
+.ember-msg.err { align-self: stretch; padding: 10px 12px; border-radius: 8px; color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, var(--surface)); display: flex; gap: 10px; align-items: center; }
+.ember-msg.err span { flex: 1; }
+.ember-msg.err button { border: 1px solid currentColor; background: none; color: inherit; border-radius: 6px; height: 28px; padding: 0 10px; cursor: pointer; font-weight: 500; }
+.ember-typing { display: inline-flex; gap: 4px; padding: 6px 0; }
+.ember-typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); animation: ember-dot 1.2s infinite ease-in-out; }
+.ember-typing i:nth-child(2) { animation-delay: .15s; }
+.ember-typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes ember-dot { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+
+.ember-form { flex: none; padding: 12px 12px 10px; border-top: 1px solid var(--border); }
+.ember-composer { display: flex; align-items: flex-end; gap: 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+.ember-composer:focus-within { border-color: var(--text-3); }
+.ember-composer textarea {
+  flex: 1; border: 0; outline: none; resize: none; background: transparent; color: var(--text);
+  font: inherit; line-height: 20px; padding: 6px 0; max-height: 140px;
+}
+.ember-send { width: 32px; height: 32px; border-radius: 8px; border: 0; background: var(--text); color: var(--bg); display: grid; place-items: center; cursor: pointer; flex: none; }
+.ember-send:disabled { opacity: .35; cursor: default; }
+.ember-foot { margin: 8px 2px 0; font-size: 11px; line-height: 14px; color: var(--text-3); }
+
+.ember-toggle .ember-mini { width: 18px; display: block; margin: -2px 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.ember-backdrop { display: none; }
+@media (max-width: 900px) {
+  .ember-panel { position: fixed; z-index: 2100; top: 0; right: 0; bottom: 0; width: min(100vw, 420px); grid-column: auto; box-shadow: var(--shadow); }
+  .ember-backdrop { display: block; position: fixed; inset: 0; z-index: 2090; background: rgba(14, 13, 12, .45); }
+  .ember-backdrop[hidden] { display: none; }
+  .app.cmp-open .main { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .ember-typing i { animation: none; opacity: .6; } }
