@@ -1,5 +1,6 @@
+(() => {
 // Status checks
-fetch("/health")
+if (document.getElementById("srv")) fetch("/health")
   .then((r) => r.json())
   .then((h) => {
     document.getElementById("srv").textContent = "online";
@@ -117,3 +118,4 @@ form.onsubmit = async (e) => {
     input.focus();
   }
 };
+})();

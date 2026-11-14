@@ -4,7 +4,7 @@ Follow-up to [10-interface-design.md](10-interface-design.md). The information a
 judged correct; this note explains why it does not *look* like a professional, state-of-the-art product, and
 what a viral wildfire-UI concept teaches us.
 
-## 1. Audit verdict (independent design review of `web/mockup/index.html`)
+## 1. Audit verdict (independent design review of the first mockup, now `web/mockup/v1.html`)
 
 1. **Colours were designed for light mode and pasted onto dark.** Ramps hard-code near-white values (zero
    `#f0f0f0`, low `#ffffcc`, "Normal" `#f7f7f7`), so the brightest cells are the *least* important ones and the

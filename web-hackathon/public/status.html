@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>A11 Hotspots — Preview</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <span class="logo">A11</span>
+    <nav><a href="#about">About</a><a href="#status">Status</a></nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">NASA Space Apps 2026 · Team A11</p>
+      <h1>MODIS &amp; VIIRS Hotspot Harmonization</h1>
+      <p class="lead">Deployment template. The burning activity calendar will live here.</p>
+    </section>
+
+    <section id="about" class="card">
+      <h2>About</h2>
+      <p>This page is a placeholder used to validate the deployment pipeline (GitHub → Easypanel) and the assistant backend (Node proxy → n8n agent). UI, framework and data views come next.</p>
+    </section>
+
+    <section id="status" class="card">
+      <h2>Status</h2>
+      <ul>
+        <li>Web server: <strong id="srv">checking…</strong></li>
+        <li>Assistant backend: <strong id="bot">checking…</strong></li>
+      </ul>
+    </section>
+  </main>
+
+  <!-- Chat widget -->
+  <button id="chat-toggle" aria-label="Open assistant"><div id="ember-fab"></div></button>
+  <div id="chat" hidden>
+    <div class="chat-head">
+      <span class="who"><span id="ember-head"></span><span>Ember <small id="ember-status">· A11 Assistant</small></span></span>
+      <button id="chat-close" aria-label="Close">×</button>
+    </div>
+    <div id="chat-log" aria-live="polite"></div>
+    <form id="chat-form">
+      <input id="chat-input" autocomplete="off" placeholder="Ask about fire hotspots…" maxlength="2000" />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <script src="/ember.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 Design of the main app, derived from the use cases and the SA requirements in
 [09-user-research-and-use-cases.md](09-user-research-and-use-cases.md).
-Clickable mockup (illustrative synthetic data): [web/mockup/index.html](../../web/mockup/index.html).
+Clickable mockup (illustrative synthetic data): [web-hackathon/public/index.html](../../web-hackathon/public/index.html) (deployed home page; v1 at `web/mockup/v1.html`).
 
 > **Update (v2).** After the audit in [11-ui-audit-and-references.md](11-ui-audit-and-references.md) the mockup
 > was rebuilt as an app shell: top bar (area, draw, theme, export) · left inspector with tabs
@@ -93,7 +93,7 @@ Clickable mockup (illustrative synthetic data): [web/mockup/index.html](../../we
 
 ## 5. Mockup scope
 
-The mockup at `web/mockup/` is a **design prototype**: three preset areas (Santiago NL, Sierra de Arteaga
+The mockup (`web-hackathon/public/index.html`, deployed as the site home page) is a **design prototype**: three preset areas (Santiago NL, Sierra de Arteaga
 polygon, Ocosingo Chiapas) with **synthetic counts** shaped like each region's season. It implements the full
 logic of the verdict (percentile, categories, low-activity guard, record, partial month), the calendar toggle,
 the burning-calendar helper, annual ranking and the monthly CSV. Not yet implemented: drawing an area,
@@ -102,7 +102,7 @@ municipality search, real harmonized data, hotspot CSV, PDF summary.
 Run it:
 
 ```bash
-python -m http.server 8770 --directory web/mockup
+python -m http.server 8770 --directory web-hackathon/public
 ```
 
 ## 6. Next steps

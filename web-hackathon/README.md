@@ -1,6 +1,6 @@
 # web-hackathon
 
-Deployment template for the A11 site. No hackathon content yet — it exists to lock in the deploy pipeline and the assistant backend before the real UI/UX and framework land.
+The deployed A11 site: the Burning Activity Calendar prototype (`public/index.html`, illustrative synthetic data) with the Ember assistant (`/api/chat` → n8n). The original placeholder page is at `/status.html`.
 
 ## Architecture
 

@@ -74,14 +74,16 @@ from the FIRMS API.
 Phase 3. Requirements and proposed architecture:
 [docs/research/05-web-app-requirements.md](../docs/research/05-web-app-requirements.md).
 
-### `mockup/` — UI design prototype
+### UI prototype (deployed)
 
-Clickable mockup of the main app with **illustrative synthetic data**: map canvas, inspector tabs (Overview ·
-Season · Burn calendar · Data) and a 2001→2026 timeline that drives every view. `v1.html` is the first,
-scrolling-page version kept for comparison (see the audit in `docs/research/11-ui-audit-and-references.md`). Design rationale:
-[docs/research/09-user-research-and-use-cases.md](../docs/research/09-user-research-and-use-cases.md) and
-[docs/research/10-interface-design.md](../docs/research/10-interface-design.md).
+The clickable prototype of the main app now lives in
+[`web-hackathon/public/index.html`](../web-hackathon/public/index.html) and is the deployed site's home page
+(with the Ember chat widget). It uses **illustrative synthetic data**: map canvas, inspector tabs (Overview ·
+Season · Burn calendar · Data) and a 2001→2026 timeline that drives every view. `mockup/v1.html` is the first,
+scrolling-page version kept for comparison (see the audit in `docs/research/11-ui-audit-and-references.md`).
+Design rationale: [docs/research/09-user-research-and-use-cases.md](../docs/research/09-user-research-and-use-cases.md)
+and [docs/research/10-interface-design.md](../docs/research/10-interface-design.md).
 
 ```bash
-python -m http.server 8770 --directory web/mockup
+python -m http.server 8770 --directory web-hackathon/public   # UI only; chat needs the Node server
 ```
