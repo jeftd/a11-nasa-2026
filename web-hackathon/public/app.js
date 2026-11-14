@@ -58,7 +58,7 @@ form.onsubmit = async (e) => {
     });
     const data = await r.json();
     typing.remove();
-    if (!r.ok) add(data.error || "Something went wrong.", "err");
+    if (!r.ok || data.error) add(data.error || "Something went wrong.", "err");
     else add(data.reply || "(empty reply)", "bot");
   } catch {
     typing.remove();

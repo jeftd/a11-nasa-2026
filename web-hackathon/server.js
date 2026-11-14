@@ -3,6 +3,8 @@
 // - Exposes POST /api/chat, which proxies to a private n8n webhook so the
 //   agent URL and secret never reach the browser.
 // - GET /health for Easypanel health checks.
+// Upstream failures return 200 + { error } because the Easypanel proxy
+// replaces 5xx responses with its own HTML error page.
 
 const http = require("http");
 const fs = require("fs");
@@ -67,7 +69,7 @@ function extractReply(data) {
 async function handleChat(req, res) {
   const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
   if (rateLimited(ip)) return sendJson(res, 429, { error: "Too many requests, slow down." });
-  if (!N8N_WEBHOOK_URL) return sendJson(res, 503, { error: "Chat backend is not configured." });
+  if (!N8N_WEBHOOK_URL) return sendJson(res, 200, { error: "Chat backend is not configured." });
 
   let payload;
   try {
@@ -93,7 +95,7 @@ async function handleChat(req, res) {
     const text = await upstream.text();
     if (!upstream.ok) {
       console.error("n8n error", upstream.status, text.slice(0, 300));
-      return sendJson(res, 502, { error: "The assistant is unavailable right now." });
+      return sendJson(res, 200, { error: "The assistant is unavailable right now." });
     }
     let data;
     try {
@@ -104,7 +106,7 @@ async function handleChat(req, res) {
     return sendJson(res, 200, { reply: extractReply(data), sessionId });
   } catch (err) {
     console.error("n8n request failed", err.message);
-    return sendJson(res, 504, { error: "The assistant took too long to answer." });
+    return sendJson(res, 200, { error: "The assistant took too long to answer." });
   }
 }
 
