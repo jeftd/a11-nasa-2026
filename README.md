@@ -44,7 +44,7 @@ A 3D globe that shows every satellite's hotspots on a grid, simulates each orbit
 and explains every field of a reading. See [web/README.md](web/README.md).
 
 ```bash
-python -m http.server 8765 --directory web/explorer
+python web/server.py
 ```
 
 ## Repository structure

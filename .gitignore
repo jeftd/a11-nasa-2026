@@ -1,6 +1,7 @@
 # Data downloads and outputs
 data/raw/
 data/processed/
+data/index/
 *.zip
 
 # Python

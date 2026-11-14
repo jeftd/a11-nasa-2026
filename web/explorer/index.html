@@ -32,19 +32,56 @@
     <aside class="panel">
       <div class="tabs" role="tablist">
         <button role="tab" class="tab active" data-mode="fires">Hotspots</button>
+        <button role="tab" class="tab" data-mode="pixels">Real pixels</button>
         <button role="tab" class="tab" data-mode="sweep">Orbit sweep</button>
-        <button role="tab" class="tab" data-mode="passes">Passes / day</button>
+        <button role="tab" class="tab" data-mode="passes">Passes/day</button>
       </div>
 
       <!-- Hotspots mode -->
       <div class="mode-body" data-for="fires">
         <p class="lead">Every vegetation-fire hotspot detected in <b id="fires-year">2024</b>, counted on a
-          <b>1° × 1° grid</b> (~110 km cells). Pick a satellite and compare: same fires, very different counts.</p>
+          grid. Pick a satellite and compare: same fires, very different counts. Zoom in to see the cells.</p>
+        <div class="field-label">Grid cell size</div>
+        <div class="seg" id="fire-res">
+          <button data-v="1" class="active">1°</button><button data-v="0.5">0.5°</button><button data-v="0.2">0.2°</button><button data-v="0.1">0.1°</button>
+        </div>
+        <label class="check"><input type="checkbox" id="fire-lines" checked> Show grid lines</label>
+        <div class="cell-size" id="cell-size"></div>
         <div class="field-label">Satellite</div>
         <div id="fire-sat-list" class="sat-list"></div>
         <div class="legend" id="fire-legend"></div>
         <div class="stat-grid" id="fire-stats"></div>
         <p class="hint">Click any cell on the globe to compare all satellites for that place.</p>
+      </div>
+
+      <!-- Real pixels mode -->
+      <div class="mode-body hidden" data-for="pixels">
+        <p class="lead">The grid is only a summary. The real data are <b>individual sensor pixels</b>: each hotspot
+          is one pixel with its true size on the ground (<code>scan × track</code> km). Draw your own area, or open an
+          example.</p>
+        <div class="field-label">Your area</div>
+        <div class="draw-box">
+          <div class="draw-row">
+            <button class="btn-sm" id="draw-start">✏ Draw polygon</button>
+            <button class="btn-sm" id="draw-finish" disabled>Finish</button>
+            <button class="btn-sm ghost" id="draw-clear">Clear</button>
+          </div>
+          <div class="draw-row">
+            <label>Date <input type="date" id="pix-date" value="2024-06-05" min="2000-11-01"></label>
+            <label>Days <select id="pix-days"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label>
+          </div>
+          <label class="full">Source <select id="pix-source"><option value="local">Local index</option><option value="firms">NASA FIRMS API</option></select></label>
+          <button class="btn-wide" id="pix-load" disabled>Load pixels in area</button>
+          <div class="hint" id="pix-status">Press “Draw polygon”, click on the globe to add vertices, then Finish.</div>
+        </div>
+        <div class="field-label">Examples (Mexico, 1° cell)</div>
+        <div id="pix-windows" class="win-list"></div>
+        <div class="field-label">Satellites</div>
+        <div id="pix-sat-list" class="sat-list"></div>
+        <label class="check"><input type="checkbox" id="pix-grid" checked> <span id="pix-grid-label">Show 0.1° grid (≈ 11 km)</span></label>
+        <div class="stat-grid" id="pix-stats"></div>
+        <p class="hint">Footprints use the along-scan size east–west and the along-track size north–south (a good
+          approximation for polar orbits). Hover a pixel to read its record.</p>
       </div>
 
       <!-- Sweep mode -->

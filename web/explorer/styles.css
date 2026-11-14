@@ -48,9 +48,30 @@ b { font-weight: 600; }
 #globe { position: absolute; inset: 0; cursor: crosshair; }
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
 
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--bg); padding: 4px;
+.check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin: 10px 0 0; cursor: pointer; color: #c9d2e1; }
+.check input { accent-color: var(--accent); margin: 0; }
+.cell-size { margin-top: 10px; font: 12.5px var(--mono); color: var(--muted); background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+.cell-size b { color: var(--text); font-weight: 500; }
+.win-list { display: flex; flex-direction: column; gap: 4px; }
+.win-btn { text-align: left; background: none; border: 1px solid transparent; color: var(--text); border-radius: 8px; padding: 7px 10px; cursor: pointer; font: 13px Inter, sans-serif; }
+.win-btn:hover { background: var(--panel); }
+.win-btn.active { background: var(--panel); border-color: var(--line); }
+.win-btn small { display: block; color: var(--muted); font: 11.5px var(--mono); margin-top: 2px; }
+.draw-box { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.draw-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.draw-box label { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.draw-box label.full select { flex: 1; }
+.draw-box input, .draw-box select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; font: 12.5px Inter, sans-serif; color-scheme: dark; }
+.btn-sm { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 6px 10px; font: 500 12.5px Inter, sans-serif; cursor: pointer; }
+.btn-sm.on { border-color: var(--accent); color: var(--accent); }
+.btn-sm.ghost { background: none; }
+.btn-sm:disabled, .btn-wide:disabled { opacity: .45; cursor: not-allowed; }
+.btn-wide { background: var(--accent); color: #1b0b00; border: 0; border-radius: 8px; padding: 9px; font: 600 13px Inter, sans-serif; cursor: pointer; }
+.draw-box .hint { margin: 0; }
+.scene-tooltip { font: 12.5px Inter, sans-serif !important; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--bg); padding: 4px;
   border-radius: 10px; margin-bottom: 14px; }
-.tab { background: none; border: 0; color: var(--muted); padding: 8px 6px; border-radius: 8px; font: 500 13px Inter, sans-serif; cursor: pointer; }
+.tab { background: none; border: 0; color: var(--muted); padding: 8px 2px; border-radius: 8px; font: 500 12.5px Inter, sans-serif; cursor: pointer; white-space: nowrap; }
 .tab.active { background: var(--panel); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
 .lead { margin: 0 0 14px; color: #c9d2e1; font-size: 14px; }
 .hint { color: var(--muted); font-size: 12.5px; margin: 12px 0 0; }

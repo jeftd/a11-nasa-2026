@@ -1,0 +1,33 @@
+{
+ "year": 2024,
+ "res": 0.1,
+ "width": 3600,
+ "height": 1800,
+ "encoding": "count = R*256 + G, row 0 = north (90N), column 0 = 180W",
+ "satellites": {
+  "Aqua": {
+   "total": 3247310,
+   "max": 708,
+   "cells": 279967,
+   "file": "fine/Aqua_2024.png"
+  },
+  "Terra": {
+   "total": 1405821,
+   "max": 745,
+   "cells": 218141,
+   "file": "fine/Terra_2024.png"
+  },
+  "SNPP": {
+   "total": 19707547,
+   "max": 4782,
+   "cells": 427697,
+   "file": "fine/SNPP_2024.png"
+  },
+  "NOAA20": {
+   "total": 21164965,
+   "max": 4934,
+   "cells": 438912,
+   "file": "fine/NOAA20_2024.png"
+  }
+ }
+}

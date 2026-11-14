@@ -46,7 +46,7 @@
   const cssGradient = (stops) => `linear-gradient(90deg, ${stops.map(([t, c]) => `rgb(${c}) ${t * 100}%`).join(",")})`;
 
   // ------------------------------------------------------------------ texture canvases
-  const TW = 4096, TH = 2048;
+  const TW = 7200, TH = 3600; // 0.1° grid = 2 texture pixels
   const base = document.createElement("canvas"); base.width = TW; base.height = TH;
   const tex = document.createElement("canvas"); tex.width = TW; tex.height = TH;
   const tctx = tex.getContext("2d");
@@ -95,7 +95,7 @@
   }
 
   // paint a lat/lon grid (rows from south) into the texture
-  function paintGrid(nLat, nLon, colorAt, alpha = 1) {
+  function paintGrid(nLat, nLon, colorAt, alpha = 1, lineRes = 0) {
     small.width = nLon; small.height = nLat;
     const img = sctx.createImageData(nLon, nLat);
     for (let r = 0; r < nLat; r++) {
@@ -114,6 +114,15 @@
     tctx.globalAlpha = alpha;
     tctx.drawImage(small, 0, 0, TW, TH);
     tctx.globalAlpha = 1;
+    // grid lines baked into the texture when cells are big enough to see them
+    const px = TW / (360 / (lineRes || 1));
+    if (lineRes && px >= 6) {
+      tctx.strokeStyle = "rgba(255,255,255,0.16)"; tctx.lineWidth = 1;
+      tctx.beginPath();
+      for (let x = 0; x <= TW; x += px) { tctx.moveTo(Math.round(x) + 0.5, 0); tctx.lineTo(Math.round(x) + 0.5, TH); }
+      for (let y = 0; y <= TH; y += px) { tctx.moveTo(0, Math.round(y) + 0.5); tctx.lineTo(TW, Math.round(y) + 0.5); }
+      tctx.stroke();
+    }
     pushTexture();
   }
 
@@ -121,7 +130,12 @@
   function pushTexture() {
     if (!globe) return;
     const m = globe.globeMaterial();
-    if (m && m.map) { m.map.image = tex; m.map.needsUpdate = true; }
+    if (m && m.map) {
+      m.map.image = tex;
+      m.map.magFilter = 1003; // THREE.NearestFilter: crisp cells when zoomed in
+      m.map.anisotropy = 8;
+      m.map.needsUpdate = true;
+    }
     else globe.globeImageUrl(tex.toDataURL("image/jpeg", 0.9));
   }
 
@@ -134,15 +148,16 @@
   }
 
   async function init() {
-    const [land, countries, coverage, mexico, samples, fires] = await Promise.all([
+    const [land, countries, coverage, mexico, samples, fires, pixels] = await Promise.all([
       getJSON("https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-110m.json"),
       getJSON("https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json"),
       getJSON("data/coverage.json"),
       getJSON("data/mexico_monthly.json"),
       getJSON("data/samples.json").catch(() => ({})),
       getJSON("data/fires_grid_2024.json").catch(() => null),
+      getJSON("data/pixels_showcase.json").catch(() => null),
     ]);
-    Object.assign(DATA, { coverage, mexico, samples, fires });
+    Object.assign(DATA, { coverage, mexico, samples, fires, pixels });
     drawBase(topojson.feature(land, land.objects.land),
              topojson.mesh(countries, countries.objects.countries, (a, b) => a !== b));
     tctx.drawImage(base, 0, 0);
@@ -156,15 +171,19 @@
       .pointsTransitionDuration(0)
       .pathTransitionDuration(0)
       .onGlobeReady(() => { globeReady = true; $("#loading").classList.add("hidden"); render(); })
-      .onGlobeClick(({ lat, lng }) => onCellClick(lat, lng));
+      .onGlobeClick(({ lat, lng }) => { if (mode === "pixels") addVertex(lat, lng); else onCellClick(lat, lng); })
+      .onZoom((pov) => onZoomChange(pov));
     globe.controls().autoRotate = false;
     globe.pointOfView({ lat: 20, lng: -60, altitude: 2.3 });
     const resize = () => globe.width(el.clientWidth).height(el.clientHeight);
     new ResizeObserver(resize).observe(el); resize();
     el.addEventListener("mousemove", onHover);
-    el.addEventListener("mouseleave", () => $("#tooltip").classList.add("hidden"));
+    el.addEventListener("mouseleave", () => {
+      $("#tooltip").classList.add("hidden");
+      if (hoverRect) { hoverRect = null; hoverKey = null; updateFirePaths(); }
+    });
 
-    buildFiresUI(); buildSweepUI(); buildPassesUI();
+    buildFiresUI(); buildPixelsUI(); buildSweepUI(); buildPassesUI();
     buildTimeline(); buildSatTable(); buildFieldTable(); buildPixelSvg(); buildMexicoChart();
     $$(".tab").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
     setMode("fires");
@@ -178,11 +197,15 @@
     $$(".mode-body").forEach((d) => d.classList.toggle("hidden", d.dataset.for !== m));
     $("#cell-info").classList.add("hidden");
     if (m !== "sweep") stopSweep();
-    globe.pointsData([]).pathsData([]);
-    render();
+    globe.pointsData([]).pathsData([]).polygonsData([]);
+    hoverRect = null; hoverKey = null; zoomLines = []; zoomKey = "";
+    if (m === "pixels") renderPixels(true);
+    else render();
+    if (m === "fires") onZoomChange(globe.pointOfView());
   }
   function render() {
     if (mode === "fires") renderFires();
+    else if (mode === "pixels") renderPixels(false);
     else if (mode === "sweep") renderSweep();
     else renderPasses();
   }
@@ -232,60 +255,184 @@
       satOption(list, k, { name: "firesat", color: c.color, label: c.label, meta: fmtK(tot),
         onChange: () => { fireSel = checkedValues(list)[0]; renderFires(); } });
     }
-    $("#fire-legend").innerHTML = `<div class="title">Hotspots per 1° cell in the year (same scale for every satellite)</div>
+    updateFireLegend();
+    loadFine().then(() => { aggCache.clear(); if (mode === "fires") renderFires(); }).catch((e) => console.warn("fine grid not available", e));
+    $$("#fire-res button").forEach((b) => b.addEventListener("click", () => {
+      $$("#fire-res button").forEach((x) => x.classList.toggle("active", x === b));
+      fireRes = +b.dataset.v; hoverKey = null; hoverRect = null; zoomKey = "";
+      updateFireLegend(); renderFires(); onZoomChange(globe.pointOfView());
+    }));
+    $("#fire-lines").addEventListener("change", (e) => { fireLines = e.target.checked; zoomKey = ""; renderFires(); onZoomChange(globe.pointOfView()); });
+  }
+
+  // ---- fine 0.1° grids decoded from PNG (count = R*256 + G, row 0 = north)
+  let fireRes = 1, fireLines = true, hoverKey = null, hoverRect = null, zoomLines = [], zoomKey = "";
+  const FINE = { meta: null, counts: {}, promise: null };
+  function loadFine() {
+    if (FINE.promise) return FINE.promise;
+    FINE.promise = (async () => {
+      const meta = await getJSON("data/fine/meta_2024.json");
+      await Promise.all(Object.entries(meta.satellites).map(async ([s, m]) => {
+        const blob = await (await fetch("data/" + m.file, { cache: "no-cache" })).blob();
+        const bmp = await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+        const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height;
+        const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(bmp, 0, 0);
+        const d = x.getImageData(0, 0, c.width, c.height).data;
+        const arr = new Uint16Array(c.width * c.height);
+        for (let i = 0, o = 0; i < arr.length; i++, o += 4) arr[i] = d[o] * 256 + d[o + 1];
+        FINE.counts[s] = arr;
+      }));
+      FINE.meta = meta;
+    })();
+    return FINE.promise;
+  }
+
+  const aggCache = new Map();
+  // grid accessor for a selection at a resolution; rows counted from the south
+  function aggregated(sel, res) {
+    const nLat = Math.round(180 / res), nLon = Math.round(360 / res);
+    if (FINE.meta && Math.abs(res - FINE.meta.res) < 1e-9) {
+      const W = FINE.meta.width, H = FINE.meta.height;
+      const arrs = membersOf(sel).map((s) => FINE.counts[s]).filter(Boolean);
+      return { nLat, nLon, get: (r, col) => { let v = 0; const o = (H - 1 - r) * W + col; for (const a of arrs) v += a[o]; return v; } };
+    }
+    const key = sel + "|" + res;
+    if (!aggCache.has(key)) {
+      const a = new Float32Array(nLat * nLon);
+      if (FINE.meta) {
+        const W = FINE.meta.width, H = FINE.meta.height, f = Math.round(res / FINE.meta.res);
+        for (const s of membersOf(sel)) {
+          const arr = FINE.counts[s]; if (!arr) continue;
+          for (let y = 0; y < H; y++) {
+            const row = Math.floor((H - 1 - y) / f) * nLon, off = y * W;
+            for (let x = 0; x < W; x++) { const v = arr[off + x]; if (v) a[row + Math.floor(x / f)] += v; }
+          }
+        }
+      } else if (res === 1) {
+        for (const s of membersOf(sel)) for (const c of DATA.fires.satellites[s].cells) a[Math.floor(c[0] + 90) * 360 + Math.floor(c[1] + 180)] += c[2];
+      } else return null;
+      aggCache.set(key, a);
+    }
+    const a = aggCache.get(key);
+    return { nLat, nLon, get: (r, col) => a[r * nLon + col] };
+  }
+  const cellIdx = (lat, lng, res) => [Math.min(Math.round(180 / res) - 1, Math.floor((lat + 90) / res)), Math.min(Math.round(360 / res) - 1, Math.floor((lng + 180) / res))];
+  const fireMaxLog = () => Math.log10(Math.max(30, 30000 * Math.pow(fireRes, 1.1)));
+  const kmCell = (res, lat) => [res * 111.32, res * 111.32 * Math.cos(lat * Math.PI / 180)];
+
+  function updateFireLegend() {
+    const m = fireMaxLog();
+    const ticks = [0, 0.2, 0.4, 0.6, 0.8, 1].map((t) => fmtK(Math.round(Math.pow(10, t * m))));
+    $("#fire-legend").innerHTML = `<div class="title">Hotspots per ${fireRes}° cell in the year (same scale for every satellite)</div>
       <div class="bar" style="background:${cssGradient(INFERNO)}"></div>
-      <div class="ticks"><span>1</span><span>10</span><span>100</span><span>1k</span><span>10k</span><span>30k</span></div>`;
+      <div class="ticks">${ticks.map((t) => `<span>${t}</span>`).join("")}</div>`;
+    const [ns, ew] = kmCell(fireRes, 20), dp = fireRes < 0.5 ? 1 : 0;
+    $("#cell-size").innerHTML = `1 cell = <b>${fireRes}° × ${fireRes}°</b> ≈ <b>${ns.toFixed(dp)} km</b> N–S × <b>${ew.toFixed(dp)} km</b> E–W (at 20° lat)<br>
+      Real sensor pixel: MODIS ≈ <b>1 km</b> · VIIRS ≈ <b>0.375 km</b> → see <b>Real pixels</b> tab`;
   }
 
   function membersOf(sel) { return COMBOS[sel] ? COMBOS[sel].members.filter((s) => DATA.fires.satellites[s]) : [sel]; }
 
   function renderFires() {
     const F = DATA.fires;
-    if (!F || !globeReady) return;
-    const members = membersOf(fireSel);
-    const counts = new Map();
-    for (const s of members) for (const c of F.satellites[s].cells) {
-      const k = cellKey1(c[0], c[1]);
-      counts.set(k, (counts.get(k) || 0) + c[2]);
-    }
-    paintGrid(180, 360, (r, col) => {
-      const n = counts.get(`${r},${col}`);
+    if (!F || !globeReady || mode !== "fires") return;
+    const g = aggregated(fireSel, fireRes);
+    if (!g) { $("#fire-stats").innerHTML = `<p class="hint">Loading the 0.1° grids…</p>`; return; }
+    const m = fireMaxLog();
+    let cells = 0;
+    paintGrid(g.nLat, g.nLon, (r, col) => {
+      const n = g.get(r, col);
       if (!n) return null;
-      const [R, G, B] = ramp(INFERNO, Math.log10(n) / FIRE_MAX);
+      cells++;
+      const [R, G, B] = ramp(INFERNO, Math.log10(n) / m);
       return [R, G, B, 235];
-    });
+    }, 1, fireLines ? fireRes : 0);
+    const members = membersOf(fireSel);
     const tot = members.reduce((a, s) => a + F.satellites[s].total, 0);
     const night = members.reduce((a, s) => a + F.satellites[s].night, 0);
     const frp = members.reduce((a, s) => a + F.satellites[s].mean_frp * F.satellites[s].total, 0) / tot;
     const conf = members.reduce((a, s) => { const c = F.satellites[s].confidence; a.h += c.h; a.l += c.l; return a; }, { h: 0, l: 0 });
     $("#fire-stats").innerHTML = [
       stat("Hotspots in " + F.year, fmt(tot), "vegetation fires only"),
-      stat("1° cells with fire", fmt(counts.size), "of 64,800 on Earth"),
+      stat(`${fireRes}° cells with fire`, fmt(cells), `of ${fmt(g.nLat * g.nLon)} on Earth`),
       stat("Detected at night", Math.round(night / tot * 100) + "%", "VIIRS sees more night fires"),
       stat("Mean fire power", frp.toFixed(1) + " MW", "FRP per hotspot"),
       stat("High confidence", Math.round(conf.h / tot * 100) + "%", ""),
       stat("Low confidence", Math.round(conf.l / tot * 100) + "%", ""),
     ].join("");
+    updateFirePaths();
+  }
+
+  function rectPts(lat0, lon0, res) {
+    const n = Math.max(2, Math.ceil(res / 0.1)), pts = [];
+    for (let i = 0; i <= n; i++) pts.push([lat0, lon0 + res * i / n]);
+    for (let i = 1; i <= n; i++) pts.push([lat0 + res * i / n, lon0 + res]);
+    for (let i = 1; i <= n; i++) pts.push([lat0 + res, lon0 + res - res * i / n]);
+    for (let i = 1; i <= n; i++) pts.push([lat0 + res - res * i / n, lon0]);
+    return pts;
+  }
+  function setPaths(paths, alt = 0.0015) {
+    globe.pathsData(paths).pathPoints("pts").pathPointLat((p) => p[0]).pathPointLng((p) => p[1])
+      .pathColor("color").pathStroke((d) => d.w || 1).pathPointAlt(alt);
+  }
+  function updateFirePaths() {
+    if (mode !== "fires") return;
+    const paths = [...zoomLines];
+    if (hoverRect) paths.push({ pts: hoverRect, color: "#ffffff", w: 2.2 });
+    setPaths(paths);
+  }
+  // fine grid lines drawn in 3D around the camera when zoomed in
+  function onZoomChange(pov) {
+    if (!pov || mode !== "fires") return;
+    if (!fireLines || pov.altitude > 0.7) {
+      if (zoomLines.length) { zoomLines = []; zoomKey = ""; updateFirePaths(); }
+      return;
+    }
+    const r = fireRes;
+    const hLat = Math.min(25, Math.max(1, pov.altitude * 45));
+    const hLon = Math.min(60, hLat / Math.max(0.25, Math.cos(pov.lat * Math.PI / 180)));
+    const i0 = Math.floor((pov.lat - hLat) / r), i1 = Math.ceil((pov.lat + hLat) / r);
+    const j0 = Math.floor((pov.lng - hLon) / r), j1 = Math.ceil((pov.lng + hLon) / r);
+    const key = [r, i0, i1, j0, j1].join(",");
+    if (key === zoomKey) return;
+    zoomKey = key;
+    zoomLines = [];
+    if ((i1 - i0) + (j1 - j0) > 500) { updateFirePaths(); return; }
+    const segLon = Math.max(1, Math.ceil((j1 - j0) / 40)), segLat = Math.max(1, Math.ceil((i1 - i0) / 40));
+    const col = "rgba(255,255,255,0.32)";
+    for (let i = i0; i <= i1; i++) {
+      const la = Math.max(-90, Math.min(90, i * r)), pts = [];
+      for (let j = j0; j <= j1; j += segLon) pts.push([la, j * r]);
+      pts.push([la, j1 * r]);
+      zoomLines.push({ pts, color: col, w: 0.5 });
+    }
+    for (let j = j0; j <= j1; j++) {
+      const pts = [];
+      for (let i = i0; i <= i1; i += segLat) pts.push([Math.max(-90, Math.min(90, i * r)), j * r]);
+      pts.push([Math.max(-90, Math.min(90, i1 * r)), j * r]);
+      zoomLines.push({ pts, color: col, w: 0.5 });
+    }
+    updateFirePaths();
   }
 
   function stat(k, v, s) { return `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || ""}</div></div>`; }
 
   function onCellClick(lat, lng) {
     if (mode !== "fires" || !DATA.fires) return;
-    const k = cellKey1(lat, lng);
-    const cell = fireIndex.get(k) || {};
-    const lat0 = Math.floor(lat), lon0 = Math.floor(lng);
+    const r = fireRes;
+    const [ri, ci] = cellIdx(lat, lng, r);
+    const lat0 = -90 + ri * r, lon0 = -180 + ci * r;
     const present = ORDER.filter((s) => DATA.fires.satellites[s]);
-    const max = Math.max(1, ...present.map((s) => (cell[s] ? cell[s][2] : 0)));
-    const modis = (cell.Terra?.[2] || 0) + (cell.Aqua?.[2] || 0);
-    const n20 = cell.NOAA20?.[2] || 0;
-    const rows = present.map((s) => {
-      const c = cell[s]; const n = c ? c[2] : 0;
-      return `<div class="row"><span>${SATS[s].label}</span><div class="track"><div class="fill" style="width:${n / max * 100}%;background:${SATS[s].color}"></div></div><span class="num">${fmt(n)}</span></div>`;
-    }).join("");
+    const val = (s) => { const g = aggregated(s, r); return g ? g.get(ri, ci) : 0; };
+    const vals = Object.fromEntries(present.map((s) => [s, val(s)]));
+    const max = Math.max(1, ...Object.values(vals));
+    const modis = (vals.Terra || 0) + (vals.Aqua || 0), n20 = vals.NOAA20 || 0;
+    const rows = present.map((s) => `<div class="row"><span>${SATS[s].label}</span><div class="track"><div class="fill" style="width:${vals[s] / max * 100}%;background:${SATS[s].color}"></div></div><span class="num">${fmt(vals[s])}</span></div>`).join("");
+    const [ns, ew] = kmCell(r, lat0 + r / 2), dp = r < 0.5 ? 1 : 0, f = (v) => +v.toFixed(2);
     const box = $("#cell-info");
     box.innerHTML = `<button class="close-x" aria-label="Close">✕</button>
-      <h4>Cell ${fmtLat(lat0)}–${fmtLat(lat0 + 1)}, ${fmtLon(lon0)}–${fmtLon(lon0 + 1)}</h4>
+      <h4>Cell ${fmtLat(f(lat0))}–${fmtLat(f(lat0 + r))}, ${fmtLon(f(lon0))}–${fmtLon(f(lon0 + r))}</h4>
+      <div class="note" style="margin:0 0 8px">${r}° × ${r}° ≈ ${ns.toFixed(dp)} × ${ew.toFixed(dp)} km · hotspots in ${DATA.fires.year}</div>
       ${rows}
       <div class="note">${modis && n20 ? `NOAA-20 alone counted <b>${(n20 / modis).toFixed(1)}×</b> the hotspots of both MODIS satellites combined in this cell.` :
         modis + n20 ? "Few detections here — ratios are noisy in small samples." : "No vegetation fires detected in this cell in " + DATA.fires.year + "."}</div>`;
@@ -298,15 +445,22 @@
   // ------------------------------------------------------------------ hover tooltip
   function onHover(ev) {
     const tip = $("#tooltip");
+    if (mode === "pixels") { tip.classList.add("hidden"); return; }
     const rect = ev.currentTarget.getBoundingClientRect();
     const x = ev.clientX - rect.left, y = ev.clientY - rect.top;
     const g = globe.toGlobeCoords(x, y);
     if (!g) { tip.classList.add("hidden"); return; }
-    let html = `<span class="mono">${g.lat.toFixed(1)}°, ${g.lng.toFixed(1)}°</span><br>`;
+    let html = `<span class="mono">${g.lat.toFixed(2)}°, ${g.lng.toFixed(2)}°</span><br>`;
     if (mode === "fires" && DATA.fires) {
-      const cell = fireIndex.get(cellKey1(g.lat, g.lng)) || {};
-      const n = membersOf(fireSel).reduce((a, s) => a + (cell[s]?.[2] || 0), 0);
-      html += `<b>${fmt(n)}</b> hotspots · ${COMBOS[fireSel]?.label || SATS[fireSel].label}<br><span class="mono">click to compare satellites</span>`;
+      const r = fireRes, [ri, ci] = cellIdx(g.lat, g.lng, r);
+      const lat0 = -90 + ri * r, lon0 = -180 + ci * r;
+      const agg = aggregated(fireSel, r);
+      const n = agg ? agg.get(ri, ci) : 0;
+      const key = ri + "," + ci + "," + r;
+      if (key !== hoverKey) { hoverKey = key; hoverRect = rectPts(lat0, lon0, r); updateFirePaths(); }
+      const [ns, ew] = kmCell(r, lat0 + r / 2);
+      html += `<b>${fmt(n)}</b> hotspots · ${COMBOS[fireSel]?.label || SATS[fireSel].label}<br>
+        Cell ${r}° ≈ <b>${ns.toFixed(1)} × ${ew.toFixed(1)} km</b><br><span class="mono">click to compare satellites</span>`;
     } else if (mode === "passes") {
       const v = passValue(g.lat, g.lng);
       html += `<b>${v.toFixed(1)}</b> observations per day`;
@@ -315,9 +469,190 @@
       html += `Passes so far: <b>${sweep.count[i * 360 + j]}</b>`;
     }
     tip.innerHTML = html;
-    tip.style.left = Math.min(x + 14, rect.width - 200) + "px";
+    tip.style.left = Math.min(x + 14, rect.width - 220) + "px";
     tip.style.top = (y + 14) + "px";
     tip.classList.remove("hidden");
+  }
+
+  // ------------------------------------------------------------------ REAL PIXELS mode
+  const PIX_SATS = ["Terra", "Aqua", "SNPP", "NOAA20", "NOAA21"];
+  const PIX_ALT = { Terra: 0.0004, Aqua: 0.0006, SNPP: 0.0008, NOAA20: 0.001, NOAA21: 0.0012 };
+  let pixSats = [...PIX_SATS], pixGrid = true, scene = null, api = null;
+  const draw = { active: false, verts: [] }; // verts: [lat, lng]
+  const fmtDate = (d) => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+
+  function windowScene(i) {
+    const w = DATA.pixels.windows[i];
+    return { pixels: w.pixels, bbox: [w.lon0, w.lat0, w.lon0 + 1, w.lat0 + 1], outline: rectPts(w.lat0, w.lon0, 1),
+             label: `${fmtDate(w.date)} · 1° × 1° example` };
+  }
+
+  async function buildPixelsUI() {
+    const list = $("#pix-sat-list");
+    for (const s of PIX_SATS) {
+      satOption(list, s, { type: "checkbox", name: "pixsat", checked: true, color: SATS[s].color,
+        label: `${SATS[s].label} <span style="color:var(--muted)">· ${SATS[s].inst}</span>`, meta: SATS[s].pixel,
+        onChange: () => { pixSats = checkedValues(list); renderPixels(false); } });
+    }
+    $("#pix-grid").addEventListener("change", (e) => { pixGrid = e.target.checked; renderPixels(false); });
+
+    const P = DATA.pixels;
+    if (P) {
+      $("#pix-windows").innerHTML = P.windows.map((w, i) => {
+        const m = (w.counts.Terra || 0) + (w.counts.Aqua || 0);
+        return `<button class="win-btn ${i === 0 ? "active" : ""}" data-i="${i}">${fmtDate(w.date)} · ${fmtLat(w.lat0)}, ${fmtLon(w.lon0)}
+          <small>MODIS ${m} px · S-NPP ${w.counts.SNPP || 0} px · NOAA-20 ${w.counts.NOAA20 || 0} px</small></button>`;
+      }).join("");
+      $$("#pix-windows .win-btn").forEach((b) => b.addEventListener("click", () => {
+        $$("#pix-windows .win-btn").forEach((x) => x.classList.toggle("active", x === b));
+        cancelDraw(); scene = windowScene(+b.dataset.i); renderPixels(true);
+      }));
+      scene = windowScene(0);
+    }
+
+    // drawing + API
+    $("#draw-start").addEventListener("click", startDraw);
+    $("#draw-finish").addEventListener("click", finishDraw);
+    $("#draw-clear").addEventListener("click", () => { cancelDraw(); draw.verts = []; updateDrawUI(); renderPixels(false); });
+    $("#pix-load").addEventListener("click", loadArea);
+    try {
+      api = await getJSON("/api/status");
+      const src = $("#pix-source");
+      src.querySelector('[value="local"]').textContent = api.local_years.length ? `Local index (${api.local_years.join(", ")}, no key)` : "Local index (not built)";
+      src.querySelector('[value="firms"]').textContent = api.firms_key ? "NASA FIRMS API (any date)" : "NASA FIRMS API (add key to .env)";
+      src.querySelector('[value="firms"]').disabled = !api.firms_key;
+      if (!api.local_years.length && api.firms_key) src.value = "firms";
+    } catch {
+      api = null;
+      $("#pix-status").innerHTML = `Drawing needs the local server: run <code>python web/server.py</code> and open <b>http://localhost:8765</b>.`;
+      $("#draw-start").disabled = true;
+    }
+  }
+
+  function startDraw() {
+    draw.active = true; draw.verts = [];
+    globe.polygonsData([]);
+    $("#pix-status").textContent = "Click on the globe to add vertices (3 or more), then press Finish.";
+    updateDrawUI(); renderDraw();
+  }
+  function cancelDraw() { draw.active = false; updateDrawUI(); }
+  function finishDraw() {
+    if (draw.verts.length < 3) return;
+    draw.active = false; updateDrawUI(); renderDraw();
+    $("#pix-status").textContent = "Area ready. Pick a date and press Load.";
+  }
+  function addVertex(lat, lng) {
+    if (!draw.active) return false;
+    draw.verts.push([lat, lng]); updateDrawUI(); renderDraw();
+    return true;
+  }
+  function updateDrawUI() {
+    $("#draw-start").classList.toggle("on", draw.active);
+    $("#draw-finish").disabled = !(draw.active && draw.verts.length >= 3);
+    $("#pix-load").disabled = draw.active || draw.verts.length < 3 || !api;
+  }
+  function polyOutline(verts) {
+    // densify each edge so it follows the sphere
+    const pts = [];
+    for (let i = 0; i < verts.length; i++) {
+      const [a1, b1] = verts[i], [a2, b2] = verts[(i + 1) % verts.length];
+      const n = Math.max(1, Math.ceil(Math.hypot(a2 - a1, b2 - b1) / 0.25));
+      for (let k = 0; k < n; k++) pts.push([a1 + (a2 - a1) * k / n, b1 + (b2 - b1) * k / n]);
+    }
+    pts.push(verts[0]);
+    return pts;
+  }
+  function renderDraw() {
+    if (mode !== "pixels") return;
+    const v = draw.verts;
+    const paths = [];
+    if (v.length >= 2) paths.push({ pts: draw.active ? v : polyOutline(v), color: "#ff7a1a", w: 2.4 });
+    setPaths(paths, 0.0015);
+    globe.pointsData(v.map(([lat, lng]) => ({ lat, lng, color: "#ff7a1a" })))
+      .pointLat("lat").pointLng("lng").pointColor("color").pointAltitude(0.001)
+      .pointRadius(Math.max(0.003, globe.pointOfView().altitude * 0.25));
+  }
+
+  async function loadArea() {
+    const v = draw.verts;
+    if (v.length < 3) return;
+    const start = $("#pix-date").value, days = $("#pix-days").value, source = $("#pix-source").value;
+    const poly = v.map(([lat, lng]) => `${lng.toFixed(4)},${lat.toFixed(4)}`).join(";");
+    const status = $("#pix-status");
+    status.textContent = "Loading…";
+    $("#pix-load").disabled = true;
+    try {
+      const r = await fetch(`/api/pixels?poly=${encodeURIComponent(poly)}&start=${start}&days=${days}&source=${source}`);
+      const j = await r.json();
+      if (!r.ok || j.error) throw new Error(j.error || r.status);
+      $$("#pix-windows .win-btn").forEach((x) => x.classList.remove("active"));
+      const lab = `${fmtDate(start)}${+days > 1 ? ` + ${days - 1} day${days > 2 ? "s" : ""}` : ""} · your area · ${source === "firms" ? "FIRMS API" : "local index"}`;
+      scene = { pixels: j.pixels, bbox: j.bbox, outline: polyOutline(v), label: lab };
+      status.innerHTML = `<b>${fmt(j.count)}</b> pixels found${j.truncated ? ` (showing ${fmt(j.returned)} — draw a smaller area or fewer days for all)` : ""}.`;
+      renderPixels(true);
+    } catch (e) {
+      status.textContent = "Error: " + e.message;
+    } finally { updateDrawUI(); }
+  }
+
+  function gridResFor(bbox) {
+    const [w, s, e, n] = bbox;
+    for (const r of [0.1, 0.25, 0.5, 1, 2]) if ((e - w) / r + (n - s) / r <= 160) return r;
+    return 5;
+  }
+
+  function renderPixels(fly) {
+    if (!globeReady || mode !== "pixels") return;
+    paintGrid(1, 1, () => null);
+    if (draw.active || !scene) { globe.polygonsData([]); renderDraw(); return; }
+    const polys = [], stats = {};
+    for (const p of scene.pixels) {
+      const [lat, lon, scan, track, sat, time, frp, conf, dn, day] = p;
+      if (!pixSats.includes(sat)) continue;
+      const dLat = track / 111.32 / 2, dLon = scan / (111.32 * Math.cos(lat * Math.PI / 180)) / 2;
+      polys.push({ type: "Feature", properties: { sat, time, frp, conf, dn, scan, track, lat, lon, day },
+        // clockwise ring (d3-geo spherical convention), otherwise it is read as the complement of the box
+        geometry: { type: "Polygon", coordinates: [[[lon - dLon, lat - dLat], [lon - dLon, lat + dLat], [lon + dLon, lat + dLat], [lon + dLon, lat - dLat], [lon - dLon, lat - dLat]]] } });
+      const s = stats[sat] || (stats[sat] = { n: 0, area: 0, scan: 0, track: 0 });
+      s.n++; s.area += scan * track; s.scan += scan; s.track += track;
+    }
+    globe.polygonsData(polys)
+      .polygonCapColor((d) => hexA(SATS[d.properties.sat].color, 0.4))
+      .polygonSideColor(() => "rgba(0,0,0,0)")
+      .polygonStrokeColor((d) => SATS[d.properties.sat].color)
+      .polygonAltitude((d) => PIX_ALT[d.properties.sat])
+      .polygonCapCurvatureResolution(10)
+      .polygonsTransitionDuration(0)
+      .polygonLabel((d) => {
+        const q = d.properties, S = SATS[q.sat];
+        return `<div style="background:#0b0e14ee;border:1px solid #243046;border-radius:8px;padding:8px 10px;font:12.5px Inter,sans-serif;color:#e6ebf3">
+          <b style="color:${S.color}">${S.label}</b> · ${S.inst}${q.day ? " · " + q.day : ""}<br>
+          Pixel <b>${q.scan.toFixed(2)} × ${q.track.toFixed(2)} km</b> = ${(q.scan * q.track).toFixed(2)} km²<br>
+          ${q.time.slice(0, 2)}:${q.time.slice(2)} UTC · ${q.dn === "N" ? "night" : "day"} · FRP ${q.frp} MW · conf ${q.conf}<br>
+          <span style="color:#93a0b6;font-family:'JetBrains Mono',monospace">${q.lat.toFixed(4)}, ${q.lon.toFixed(4)}</span></div>`;
+      })
+      .onPolygonClick((p, ev, c) => { if (draw.active && c) addVertex(c.lat, c.lng); });
+    const [w, s, e, n] = scene.bbox;
+    const gr = gridResFor(scene.bbox);
+    const paths = [{ pts: scene.outline, color: "#ffffff", w: 2 }];
+    if (pixGrid) {
+      const col = "rgba(255,255,255,0.3)";
+      for (let i = Math.ceil(s / gr); i * gr <= n; i++) paths.push({ pts: [[i * gr, w], [i * gr, (w + e) / 2], [i * gr, e]], color: col, w: 0.6 });
+      for (let j = Math.ceil(w / gr); j * gr <= e; j++) paths.push({ pts: [[s, j * gr], [(s + n) / 2, j * gr], [n, j * gr]], color: col, w: 0.6 });
+    }
+    globe.pointsData([]);
+    setPaths(paths, 0.0013);
+    const cLat = (s + n) / 2, cLon = (w + e) / 2;
+    const ext = Math.max(n - s, (e - w) * Math.cos(cLat * Math.PI / 180));
+    if (fly) globe.pointOfView({ lat: cLat, lng: cLon, altitude: Math.max(0.02, ext * Math.PI / 180 * 1.7) }, 1500);
+    const km = (gr * 111.32).toFixed(gr < 1 ? 1 : 0);
+    $("#pix-grid-label").textContent = `Show ${gr}° grid (≈ ${km} km)`;
+    $("#pix-stats").innerHTML = `<div class="stat" style="grid-column:1/-1"><div class="k">Scene</div><div class="v" style="font-size:14px">${scene.label}</div></div>` +
+      PIX_SATS.filter((x) => stats[x]).map((x) => {
+        const q = stats[x];
+        return stat(`${SATS[x].label} · ${fmt(q.n)} pixels`, `${(q.scan / q.n).toFixed(2)} × ${(q.track / q.n).toFixed(2)} km`, `average pixel · ${Math.round(q.area)} km² flagged`);
+      }).join("") + (polys.length ? "" : `<p class="hint">No fire pixels for the selected satellites here.</p>`);
   }
 
   // ------------------------------------------------------------------ SWEEP mode
