@@ -1,0 +1,13 @@
+{
+  "name": "a11-web-hackathon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deployment template for the A11 hackathon site with an n8n-backed assistant.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
