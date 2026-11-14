@@ -29,6 +29,12 @@ MODIS and VIIRS counts differ (with our measured numbers), an interactive *same 
 counting units (pixels, fire cells, fire days, calibrated counts, anomalies) and the planned pipeline.
 Open it from the explorer header (**Data guide →**) or at http://localhost:8765/learn.html.
 
+### `explorer/ember.html` — Ember, the mascot
+
+A standalone page with a small flame mascot in all its states (same eye system as Corve, Corvesia's mascot: two
+pills whose lids carry the emotion). `ember.js` is the expression engine (18 gestures, flicker, blinking, springs,
+`prefers-reduced-motion` support). Click any flame to make it flare up. It is not shown inside the explorer itself.
+
 ### Run locally
 
 ```bash

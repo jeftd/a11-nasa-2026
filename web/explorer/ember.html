@@ -1,0 +1,83 @@
+<!doctype html>
+<!-- Ember gallery: every gesture alive, plus the color variants. Open it straight in the browser. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ember mascot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #0b0e14; --bg-2: #111622; --panel: #151b28; --line: #243046; --text: #e6ebf3; --muted: #93a0b6; --accent: #ff7a1a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 Inter, system-ui, sans-serif; padding: 40px 16px 64px; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 0; }
+    h2 { font-size: 1.3rem; margin: 44px 0 14px; }
+    p { color: var(--muted); margin: 8px 0 0; max-width: 64ch; }
+    a { color: #56B4E9; }
+    code { font-family: "JetBrains Mono", monospace; font-size: .9em; }
+    .hero { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; }
+    .hero .big { width: 150px; cursor: pointer; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .c { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; cursor: pointer; }
+    .c:hover { border-color: #ff7a1a66; }
+    .c .s { background: var(--panel); border-radius: 8px; aspect-ratio: 1/1; display: grid; place-items: center; }
+    .c .s > div { width: 56%; }
+    .c b { display: block; margin-top: 8px; font-weight: 600; font-family: "JetBrains Mono", monospace; font-size: 13px; }
+    .c span { font-size: .82rem; color: var(--muted); }
+    .colors { display: flex; flex-wrap: wrap; gap: 12px; }
+    .colors figure { margin: 0; text-align: center; }
+    .colors .s { width: 110px; aspect-ratio: 1/1; display: grid; place-items: center; background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; }
+    .colors .s > div { width: 56%; }
+    .colors figcaption { font: 12px "JetBrains Mono", monospace; color: var(--muted); margin-top: 6px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="big" id="hero" title="Click me"></div>
+    <div>
+      <h1>Ember</h1>
+      <p>The Fire Data Explorer mascot: a small flame whose eyes show what the app is doing. Click any flame to make it
+        flare up. Its eyes follow the same rules as Corve: two pills, lids in the color behind them, no pupils.</p>
+      <p><a href="index.html">← Back to the explorer</a></p>
+    </div>
+  </div>
+
+  <h2>Gestures</h2>
+  <div class="grid" id="g"></div>
+
+  <h2>Colors</h2>
+  <p style="margin-bottom:14px">One flame per satellite, using the same colors as the explorer charts.</p>
+  <div class="colors" id="col"></div>
+</div>
+<script src="ember.js"></script>
+<script>
+  const WHEN = {
+    idle: 'at rest', curious: 'a new query arrives', thinking: 'planning', working: 'loading data',
+    reading: 'reading records', waiting: 'needs your input', stuck: 'blocked', failed: 'a step failed',
+    annoyed: 'access denied', sad: 'task cancelled', done: 'finished', proud: 'checks passed',
+    found: 'found fires', doubt: 'data looks odd', scanning: 'watching the globe', sleeping: 'idle for a while',
+    thankful: 'thanked', burst: 'on click'
+  };
+  const hero = Ember.create(document.getElementById('hero'), { follow: true });
+  document.getElementById('hero').onclick = () => hero.flare();
+
+  const g = document.getElementById('g');
+  Object.keys(Ember.GESTURES).forEach(k => {
+    const c = document.createElement('div'); c.className = 'c';
+    c.innerHTML = `<div class="s"><div></div></div><b>${k}</b><span>${WHEN[k] || ''}</span>`; g.append(c);
+    const p = Ember.create(c.querySelector('.s > div'), { gesture: k }); c.onclick = () => p.flare();
+  });
+
+  const col = document.getElementById('col');
+  Object.keys(Ember.COLORS).forEach(n => {
+    const f = document.createElement('figure');
+    f.innerHTML = `<div class="s"><div></div></div><figcaption>${n}</figcaption>`; col.append(f);
+    const p = Ember.create(f.querySelector('.s > div'), { color: n });
+    f.onclick = () => p.flare();
+  });
+</script>
+</body>
+</html>
