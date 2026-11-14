@@ -1,0 +1,188 @@
+{
+  "name": "A11 Load FIRMS CSV",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "name": "When called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url.replace('{KEY}', $env.FIRMS_MAP_KEY) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "data"
+            }
+          },
+          "timeout": 180000
+        }
+      },
+      "name": "Download CSV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "source",
+              "type": "string",
+              "value": "={{ $('When called').item.json.source }}"
+            },
+            {
+              "id": "a2",
+              "name": "processing",
+              "type": "string",
+              "value": "={{ $('When called').item.json.processing }}"
+            },
+            {
+              "id": "a3",
+              "name": "country",
+              "type": "string",
+              "value": "={{ $('When called').item.json.country }}"
+            },
+            {
+              "id": "a4",
+              "name": "csv",
+              "type": "string",
+              "value": "={{ $json.data }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Shape row",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "name",
+          "value": "staging_csv"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "name": "Stage CSV",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        660,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "vc9QesVEe9bgweDY",
+          "name": "a11-db"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM load_staged();",
+        "options": {}
+      },
+      "name": "Parse into hotspots",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "vc9QesVEe9bgweDY",
+          "name": "a11-db"
+        }
+      },
+      "executeOnce": true
+    }
+  ],
+  "connections": {
+    "When called": {
+      "main": [
+        [
+          {
+            "node": "Download CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download CSV": {
+      "main": [
+        [
+          {
+            "node": "Shape row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape row": {
+      "main": [
+        [
+          {
+            "node": "Stage CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage CSV": {
+      "main": [
+        [
+          {
+            "node": "Parse into hotspots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false
+  }
+}

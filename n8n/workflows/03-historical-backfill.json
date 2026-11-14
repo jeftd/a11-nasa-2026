@@ -1,0 +1,106 @@
+{
+  "name": "A11 Historical backfill (Mexico)",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Run once",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mexico country yearly files (Standard Processing) + FIRMS Area API for the current year.\nconst COUNTRY = 'Mexico';\nconst BBOX = '-118.5,14.5,-86.7,32.8';\nconst DO_COUNTRY_FILES = true;\nconst DO_CURRENT_YEAR_API = true;\n\nconst items = [];\nconst base = 'https://firms.modaps.eosdis.nasa.gov/data/country';\nconst products = [['modis', 2000, 2025], ['viirs-snpp', 2012, 2025], ['viirs-jpss1', 2018, 2025]];\nif (DO_COUNTRY_FILES) {\n  for (const [p, y0, y1] of products) {\n    for (let y = y0; y <= y1; y++) {\n      const url = `${base}/${p}/${y}/${p}_${y}_${COUNTRY}.csv`;\n      items.push({ url, source: url, processing: 'SP', country: COUNTRY });\n    }\n  }\n}\n\nif (DO_CURRENT_YEAR_API) {\n  const api = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';\n  const sources = ['MODIS_SP', 'MODIS_NRT', 'VIIRS_NOAA20_SP', 'VIIRS_NOAA20_NRT',\n                   'VIIRS_NOAA21_SP', 'VIIRS_NOAA21_NRT', 'VIIRS_SNPP_SP', 'VIIRS_SNPP_NRT'];\n  const today = new Date();\n  for (let d = new Date(Date.UTC(today.getUTCFullYear(), 0, 1)); d <= today; d.setUTCDate(d.getUTCDate() + 5)) {\n    const day = d.toISOString().slice(0, 10);\n    for (const s of sources) {\n      const path = `${s}/${BBOX}/5/${day}`;\n      items.push({ url: `${api}/{KEY}/${path}`, source: `api:${path}`,\n                   processing: s.endsWith('_SP') ? 'SP' : 'NRT', country: `${COUNTRY} (bbox)` });\n    }\n  }\n}\nreturn items.map(json => ({ json }));"
+      },
+      "name": "List files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "g8PK6cZ7WiIK8N3w"
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "name": "Load each",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM refresh_after_load();",
+        "options": {}
+      },
+      "name": "Refresh grid",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        660,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "vc9QesVEe9bgweDY",
+          "name": "a11-db"
+        }
+      },
+      "executeOnce": true
+    }
+  ],
+  "connections": {
+    "Run once": {
+      "main": [
+        [
+          {
+            "node": "List files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List files": {
+      "main": [
+        [
+          {
+            "node": "Load each",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load each": {
+      "main": [
+        [
+          {
+            "node": "Refresh grid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
