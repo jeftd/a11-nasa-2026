@@ -187,6 +187,17 @@
       <div class="card"><h3>The fix</h3><p>Learn the ratio per region and calendar month from the overlap, convert
         MODIS-era counts to VIIRS-equivalent, and show one continuous 2000 → today calendar.</p></div>
     </div>
+    <h3 class="sub">Do they detect the same fires?</h3>
+    <p class="section-lead">Pixel-by-pixel test with Aqua (MODIS) and Suomi NPP (VIIRS), which pass over at almost the
+      same time of day. Mexico and neighbors, daytime, April–May 2024.</p>
+    <div class="cards-3">
+      <div class="card"><h3>73% of MODIS hotspots</h3><p>also appear in VIIRS (within 2 km, same afternoon). Where both
+        see a fire, one MODIS pixel ≈ <b>2–3 VIIRS pixels</b>: a ~2 km² MODIS pixel is split into several ~0.2 km² ones.</p></div>
+      <div class="card"><h3>70% of VIIRS hotspots</h3><p>have <b>no MODIS hotspot</b> nearby. They are small, cool fires
+        (median FRP 6 MW vs 26 MW) below the MODIS detection limit.</p></div>
+      <div class="card"><h3>More points, less area</h3><p>VIIRS reports <b>5.6× more pixels</b> but flags <b>~40% less
+        total area</b> (40k vs 65k km²). The count gap = pixel splitting × extra small fires.</p></div>
+    </div>
   </section>
 </main>
 

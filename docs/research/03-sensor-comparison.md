@@ -62,3 +62,40 @@ Additional observations:
 - [ ] Compare MODIS vs VIIRS **after spatial aggregation** (count fire-*cells*/fire-*days* instead of pixels).
 - [ ] Add S-NPP (2012–2026) to extend the overlap window to ~14 years.
 - [ ] Check stability of the ratio over time (Terra/Aqua aging, orbit drift).
+
+## 5. Do MODIS and VIIRS detect the *same* hotspots? (pixel-level matching)
+
+Script: [`analysis/pixel_matching.py`](../../analysis/pixel_matching.py) (uses the local 2024 index).
+Test: Mexico and neighbors (bbox −118, 14, −86, 33), 1 Apr – 31 May 2024 (peak season), **daytime** pixels,
+vegetation fires only. Aqua (MODIS) and Suomi NPP (VIIRS) both cross the equator at ~13:30, so they are the
+closest pair in time; over a given place their passes can still differ by up to ~100 min because the orbits have
+different altitudes. A pixel "has a counterpart" if the other sensor has a detection within 2 km on the same day
+within 100 min.
+
+| | Aqua (MODIS) | Suomi NPP (VIIRS) |
+|---|---|---|
+| Daytime pixels | 31,682 | 176,478 (5.6×) |
+| Mean pixel area | 2.06 km² | 0.226 km² (9× smaller) |
+| Total area flagged (sum of pixels) | **65,254 km²** | **39,953 km²** |
+| Pixels with a counterpart in the other sensor (≤ 2 km) | **73 %** | **30 %** |
+| Median FRP, with / without counterpart | 26.3 / 23.4 MW | 9.5 / 6.3 MW |
+| VIIRS pixels inside one matched MODIS pixel footprint (same pass, ≤ 30 min) | — | mean 2.5, median 2, max 24 |
+
+What this means:
+1. **Mostly the same big fires, but not one-to-one.** About three quarters of MODIS hotspots also appear in VIIRS
+   on the same afternoon. Misses come from timing (fires change in minutes), clouds/smoke, viewing geometry and
+   occasional false alarms.
+2. **One MODIS hotspot ≈ 2–3 VIIRS hotspots** for the same fire, because a ~1–2 km² MODIS pixel is split into
+   several 0.14–0.3 km² VIIRS pixels.
+3. **Most VIIRS hotspots (~70 %) have no MODIS hotspot at all**: they are small or cool fires (median FRP 6 MW)
+   below the MODIS detection limit.
+4. The intuition "MODIS = fewer points but more area; VIIRS = more points but less area" is **correct in
+   aggregate**: VIIRS reports 5.6× more pixels but flags ~40 % less total area.
+5. The ~4–5× count ratio is therefore the product of (a) pixel splitting (~2.5×) and (b) extra small fires only
+   VIIRS sees. Both depend on fire size, which depends on region and season → calibration must be regional and
+   seasonal. Counting **fire cells/days** (e.g. 1 km or 0.1° cells) instead of raw pixels removes (a).
+
+Reproduce:
+```bash
+python analysis/pixel_matching.py --bbox -118 14 -86 33 --start 2024-04-01 --days 61
+```

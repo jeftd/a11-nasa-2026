@@ -155,6 +155,7 @@ table.fields tr:hover td { background: #ffffff06; }
 .fire { fill: #ffcf4a; filter: drop-shadow(0 0 4px #ff7a1a); }
 .c-modis { color: var(--terra); } .c-viirs { color: var(--noaa20); }
 
+h3.sub { font-size: 19px; margin: 34px 0 8px; }
 .chart-controls { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .chart-box { position: relative; height: 380px; background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
 .cards-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }

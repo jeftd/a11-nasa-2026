@@ -371,9 +371,12 @@
     for (let i = 1; i <= n; i++) pts.push([lat0 + res - res * i / n, lon0]);
     return pts;
   }
-  function setPaths(paths, alt = 0.0015) {
+  // Overlays sit just above the surface (alt is in globe radii: 0.00012 ≈ 0.8 km) so they do not drift
+  // against the texture when the globe rotates (parallax), and are interpolated along the sphere every 0.2°
+  // so long segments do not cut below the curvature.
+  function setPaths(paths, alt = 0.00012) {
     globe.pathsData(paths).pathPoints("pts").pathPointLat((p) => p[0]).pathPointLng((p) => p[1])
-      .pathColor("color").pathStroke((d) => d.w || 1).pathPointAlt(alt);
+      .pathColor("color").pathStroke((d) => d.w || 1).pathPointAlt(alt).pathResolution(0.2);
   }
   function updateFirePaths() {
     if (mode !== "fires") return;
@@ -389,8 +392,13 @@
       return;
     }
     const r = fireRes;
-    const hLat = Math.min(25, Math.max(1, pov.altitude * 45));
-    const hLon = Math.min(60, hLat / Math.max(0.25, Math.cos(pov.lat * Math.PI / 180)));
+    // visible half-height ≈ altitude × 27° (50° camera FOV); pad it and widen for the screen aspect ratio
+    const hLat = Math.min(12, Math.max(0.5, pov.altitude * 34));
+    const hLon = Math.min(30, hLat * 1.9 / Math.max(0.25, Math.cos(pov.lat * Math.PI / 180)));
+    if ((2 * hLat) / r > 110) { // cells too small on screen: lines would only hide the colors
+      if (zoomLines.length) { zoomLines = []; zoomKey = ""; updateFirePaths(); }
+      return;
+    }
     const i0 = Math.floor((pov.lat - hLat) / r), i1 = Math.ceil((pov.lat + hLat) / r);
     const j0 = Math.floor((pov.lng - hLon) / r), j1 = Math.ceil((pov.lng + hLon) / r);
     const key = [r, i0, i1, j0, j1].join(",");
@@ -399,7 +407,7 @@
     zoomLines = [];
     if ((i1 - i0) + (j1 - j0) > 500) { updateFirePaths(); return; }
     const segLon = Math.max(1, Math.ceil((j1 - j0) / 40)), segLat = Math.max(1, Math.ceil((i1 - i0) / 40));
-    const col = "rgba(255,255,255,0.32)";
+    const col = "rgba(255,255,255,0.28)";
     for (let i = i0; i <= i1; i++) {
       const la = Math.max(-90, Math.min(90, i * r)), pts = [];
       for (let j = j0; j <= j1; j += segLon) pts.push([la, j * r]);
@@ -476,7 +484,7 @@
 
   // ------------------------------------------------------------------ REAL PIXELS mode
   const PIX_SATS = ["Terra", "Aqua", "SNPP", "NOAA20", "NOAA21"];
-  const PIX_ALT = { Terra: 0.0004, Aqua: 0.0006, SNPP: 0.0008, NOAA20: 0.001, NOAA21: 0.0012 };
+  const PIX_ALT = { Terra: 0.00002, Aqua: 0.00004, SNPP: 0.00006, NOAA20: 0.00008, NOAA21: 0.0001 }; // 0.1–0.6 km
   let pixSats = [...PIX_SATS], pixGrid = true, scene = null, api = null;
   const draw = { active: false, verts: [] }; // verts: [lat, lng]
   const fmtDate = (d) => new Date(d + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -568,9 +576,9 @@
     const v = draw.verts;
     const paths = [];
     if (v.length >= 2) paths.push({ pts: draw.active ? v : polyOutline(v), color: "#ff7a1a", w: 2.4 });
-    setPaths(paths, 0.0015);
+    setPaths(paths, 0.00015);
     globe.pointsData(v.map(([lat, lng]) => ({ lat, lng, color: "#ff7a1a" })))
-      .pointLat("lat").pointLng("lng").pointColor("color").pointAltitude(0.001)
+      .pointLat("lat").pointLng("lng").pointColor("color").pointAltitude(0.0002)
       .pointRadius(Math.max(0.003, globe.pointOfView().altitude * 0.25));
   }
 
@@ -642,7 +650,7 @@
       for (let j = Math.ceil(w / gr); j * gr <= e; j++) paths.push({ pts: [[s, j * gr], [(s + n) / 2, j * gr], [n, j * gr]], color: col, w: 0.6 });
     }
     globe.pointsData([]);
-    setPaths(paths, 0.0013);
+    setPaths(paths, 0.00013);
     const cLat = (s + n) / 2, cLon = (w + e) / 2;
     const ext = Math.max(n - s, (e - w) * Math.cos(cLat * Math.PI / 180));
     if (fly) globe.pointOfView({ lat: cLat, lng: cLon, altitude: Math.max(0.02, ext * Math.PI / 180 * 1.7) }, 1500);
@@ -740,7 +748,7 @@
       paths.push(...splitPath(tr.slice(Math.max(0, k - 30), k + 1), SATS[s].color));
     }
     globe.pointsData(pts).pointLat("lat").pointLng("lng").pointColor("color").pointAltitude(0.06).pointRadius(1.1)
-      .pathsData(paths).pathPoints("pts").pathPointLat((p) => p[0]).pathPointLng((p) => p[1]).pathColor("color").pathStroke(1.6).pathPointAlt(0.004);
+      .pathsData(paths).pathPoints("pts").pathPointLat((p) => p[0]).pathPointLng((p) => p[1]).pathColor("color").pathStroke(1.6).pathPointAlt(0.0003).pathResolution(0.5);
     const mins = k * DATA.coverage.satellites.Terra.track_dt_s / 60;
     $("#clock").textContent = `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(Math.round(mins % 60)).padStart(2, "0")} UTC`;
     $("#time").value = k;
@@ -833,7 +841,7 @@
       const oneOrbit = Math.round(o.period_min * 60 / o.track_dt_s);
       paths.push(...splitPath(o.track.slice(0, oneOrbit + 1), SATS[s].color));
     }
-    globe.pointsData([]).pathsData(paths).pathPoints("pts").pathPointLat((p) => p[0]).pathPointLng((p) => p[1]).pathColor("color").pathStroke(1.4).pathPointAlt(0.004);
+    globe.pointsData([]).pathsData(paths).pathPoints("pts").pathPointLat((p) => p[0]).pathPointLng((p) => p[1]).pathColor("color").pathStroke(1.4).pathPointAlt(0.0003).pathResolution(0.5);
     // stats: equator band (rows touching 0°) and 60°N
     const eqRow = g[Math.floor(90 / C.res)], hiRow = g[Math.floor(150 / C.res)];
     const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
