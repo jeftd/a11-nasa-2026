@@ -112,6 +112,12 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .layers label{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer}
 .layers label:hover{background:var(--surface-2)}
 .layers input{accent-color:var(--text)}
+.layers .lysub{display:flex;flex-direction:column;gap:1px;margin:0 0 4px 18px;padding-left:8px;border-left:1px solid var(--border)}
+.layers .lysub label{padding:3px 6px;font-size:12px}
+.layers .lysub.off{opacity:.45;pointer-events:none}
+.layers .lyhead{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:6px 6px 2px}
+.layers .sw{width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2.5px color-mix(in srgb,var(--h) 40%,transparent);flex:none}
+.layers .frpn{margin-left:auto;padding-left:8px;color:var(--text-3);font-variant-numeric:tabular-nums}
 .drawhint{left:50%;top:16px;transform:translateX(-50%);padding:8px 12px;font-size:13px;display:none;align-items:center;gap:10px}
 .drawhint.show{display:flex}
 .drawhint .sm2{height:28px;padding:0 10px;font-size:13px}
@@ -490,6 +496,21 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
         <div id="map" role="img" aria-label="Map of hotspots in the selected area and month"></div>
         <div class="float layers" aria-label="Layers">
           <label><input type="checkbox" id="lyHot" checked> Hotspots</label>
+          <div class="lysub" id="lyFilters">
+            <div class="lyhead" id="lyFtHead">Fire type</div>
+            <div role="group" aria-labelledby="lyFtHead" style="display:contents">
+              <label title="Presumed vegetation fire: what the calendar counts"><input type="checkbox" data-ft="0" checked><span class="sw" style="--c:#FFB000;--h:#FF4D00"></span>Vegetation</label>
+              <label title="Detection on an active volcano"><input type="checkbox" data-ft="1"><span class="sw" style="--c:#FF6B6B;--h:#C92A2A"></span>Active volcano</label>
+              <label title="Persistent heat source: industry, gas flares, mines"><input type="checkbox" data-ft="2"><span class="sw" style="--c:#9775FA;--h:#5F3DC4"></span>Static land source</label>
+              <label title="Offshore detection, e.g. oil and gas platforms"><input type="checkbox" data-ft="3"><span class="sw" style="--c:#4DABF7;--h:#1864AB"></span>Offshore</label>
+            </div>
+            <div class="lyhead" id="lyFrpHead" title="Fire Radiative Power, in megawatts">Intensity (FRP)</div>
+            <div role="group" aria-labelledby="lyFrpHead" style="display:contents">
+              <label><input type="checkbox" data-frp="lo" checked>Low<span class="frpn">&lt; 10 MW</span></label>
+              <label><input type="checkbox" data-frp="mid" checked>Moderate<span class="frpn">10–50 MW</span></label>
+              <label><input type="checkbox" data-frp="hi" checked>High<span class="frpn">≥ 50 MW</span></label>
+            </div>
+          </div>
           <label><input type="checkbox" id="lyArea" checked> Area outline</label>
           <label><input type="checkbox" id="lyFc"> 72 h forecast</label>
         </div>
@@ -712,7 +733,13 @@ function setTiles(){if(tiles)map.removeLayer(tiles);
   ]).addTo(map)}
 setTiles();
 const areaLayer=L.layerGroup().addTo(map),hotLayer=L.layerGroup().addTo(map);
-$('lyHot').onchange=e=>e.target.checked?hotLayer.addTo(map):map.removeLayer(hotLayer);
+$('lyHot').onchange=e=>{e.target.checked?hotLayer.addTo(map):map.removeLayer(hotLayer);$('lyFilters').classList.toggle('off',!e.target.checked)};
+// FIRMS fire types: [core, halo]. NRT rows carry no type and come back as 0 (vegetation).
+const FT={0:['#FFB000','#FF4D00'],1:['#FF6B6B','#C92A2A'],2:['#9775FA','#5F3DC4'],3:['#4DABF7','#1864AB']};
+const lyTypes=()=>[...document.querySelectorAll('#lyFilters [data-ft]')].filter(i=>i.checked).map(i=>+i.dataset.ft);
+const lyFrp=()=>new Set([...document.querySelectorAll('#lyFilters [data-frp]')].filter(i=>i.checked).map(i=>i.dataset.frp));
+const frpBand=f=>f>=50?'hi':f>=10?'mid':'lo';
+document.querySelectorAll('#lyFilters input').forEach(i=>i.onchange=()=>{if(area)renderMap()});
 $('lyArea').onchange=e=>e.target.checked?areaLayer.addTo(map):map.removeLayer(areaLayer);
 const inside=(p,vs)=>{let x=p[1],y=p[0],ins=false;for(let i=0,j=vs.length-1;i<vs.length;j=i++){const xi=vs[i][1],yi=vs[i][0],xj=vs[j][1],yj=vs[j][0];if(((yi>y)!=(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))ins=!ins}return ins};
 let fitted=null;
@@ -721,22 +748,33 @@ function renderMap(){
   const poly=L.polygon(area.poly,{color:css('--text'),weight:2,dashArray:'6 5',fill:true,fillColor:css('--text'),fillOpacity:.03,interactive:false}).addTo(areaLayer);
   if(fitted!==area.id){map.fitBounds(poly.getBounds(),{padding:[60,60]});fitted=area.id}
   const v=val(area,sel.y,sel.m)||0,label=`${v.toLocaleString()} hotspots · ${MONTHS[sel.m]} ${sel.y}`;
-  if(!realData(area)){scatterDots(v,poly.getBounds());$('legCount').textContent=`${label}${v>700?' (700 shown)':''} · positions illustrative`;return}
+  const types=lyTypes();
+  if(!types.length||!realData(area)&&!types.includes(0)){++dotsSeq;clearTimeout(dotsTimer)}
+  if(!types.length){$('legCount').textContent=`${MONTHS[sel.m]} ${sel.y} · no fire type selected`;return}
+  if(!realData(area)){if(!types.includes(0)){$('legCount').textContent=`${MONTHS[sel.m]} ${sel.y} · only vegetation fires in this preview`;return}
+    scatterDots(v,poly.getBounds());$('legCount').textContent=`${label}${v>700?' (700 shown)':''} · positions illustrative`;return}
   // Real detections of this month from the database. MODIS-era months show the MODIS detections (the count above is
   // their VIIRS-equivalent); VIIRS months show NOAA-20, the reference of the harmonized series.
   const modis=(area.src[sel.y]?.[sel.m]||'VIIRS')!=='VIIRS',sats=modis?['Terra','Aqua']:['NOAA20'];
   const from=dayStr(sel.y,sel.m,1),to=dayStr(sel.y,sel.m,isPartial(sel.y,sel.m)?NOW_D:daysIn(sel.y,sel.m));
-  const key=`${area.id}|${from}|${sats}`,want=++dotsSeq;
+  const key=`${area.id}|${from}|${sats}|${types}`,want=++dotsSeq;
   const draw=res=>{if(want!==dotsSeq)return;hotLayer.clearLayers();
-    res.points.forEach(([la,lo2,frp])=>{const p=[la,lo2],big=frp>=50;
-      L.circleMarker(p,{radius:big?8:6,stroke:false,fillColor:'#FF4D00',fillOpacity:.13,interactive:false}).addTo(hotLayer);
-      L.circleMarker(p,{radius:big?3.2:2.4,stroke:false,fillColor:'#FFB000',fillOpacity:1,interactive:false}).addTo(hotLayer)});
+    const bands=lyFrp();let n=0;
+    // Other fire types first so vegetation dots stay on top.
+    [...res.points].sort((a,b)=>(b[5]||0)-(a[5]||0)).forEach(([la,lo2,frp,,,ft])=>{if(!bands.has(frpBand(frp)))return;n++;
+      const c=FT[ft||0]||FT[0],p=[la,lo2],big=frp>=50;
+      L.circleMarker(p,{radius:big?8:6,stroke:false,fillColor:c[1],fillOpacity:.13,interactive:false}).addTo(hotLayer);
+      L.circleMarker(p,{radius:big?3.2:2.4,stroke:false,fillColor:c[0],fillOpacity:1,interactive:false}).addTo(hotLayer)});
+    const bt=res.byType||{0:res.total},veg=types.includes(0)?(bt[0]||0):0,other=res.total-veg;
     const shown=res.points.length<res.total?` (strongest ${res.points.length.toLocaleString()} shown)`:'';
-    $('legCount').textContent=modis?`${label} · ${res.total.toLocaleString()} MODIS detections${shown}`:`${label}${shown}`};
+    const base=!types.includes(0)?`${MONTHS[sel.m]} ${sel.y}`:modis?`${label} · ${veg.toLocaleString()} MODIS detections`:label;
+    const oth=other>0?` · ${other.toLocaleString()} non-vegetation`:!types.includes(0)?' · no non-vegetation detections':'';
+    const frp=bands.size<3?` · ${n.toLocaleString()} in the FRP range`:'';
+    $('legCount').textContent=`${base}${oth}${shown}${frp}`};
   if(DOTS.has(key)){draw(DOTS.get(key));return}
   $('legCount').textContent=`${label} · loading detections…`;
   clearTimeout(dotsTimer);if(playing)return;
-  dotsTimer=setTimeout(()=>A11Harmonized.points(spec(area),from,to,sats)
+  dotsTimer=setTimeout(()=>A11Harmonized.points(spec(area),from,to,sats,types)
     .then(res=>{DOTS.set(key,res);draw(res)})
     .catch(err=>{if(want!==dotsSeq)return;console.warn('Hotspot points unavailable:',err.message);scatterDots(v,poly.getBounds());
       $('legCount').textContent=`${label}${v>700?' (700 shown)':''} · positions illustrative`}),220);

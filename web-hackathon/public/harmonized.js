@@ -105,9 +105,10 @@
     return body.months;
   }
 
-  // Strongest detections for the map: { total, points: [[lat, lon, frp, conf_class, satellite], ...] }.
-  async function points(spec, from, to, satellites) {
-    const body = await (await post("/api/hotspots", { ...spec, from, to, satellites, format: "json" })).json();
+  // Strongest detections for the map: { total, byType, points: [[lat, lon, frp, conf_class, satellite, fire_type], ...] }.
+  // types: FIRMS fire types to include (0 vegetation, 1 volcano, 2 static land source, 3 offshore); default [0].
+  async function points(spec, from, to, satellites, types) {
+    const body = await (await post("/api/hotspots", { ...spec, from, to, satellites, types, format: "json" })).json();
     if (body.error) throw new Error(body.error);
     return body;
   }

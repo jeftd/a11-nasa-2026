@@ -89,11 +89,17 @@ class Handler(SimpleHTTPRequestHandler):
         la = [p[0] for p in poly]
         lo = [p[1] for p in poly]
         rnd = random.Random(req.get("from"))
+        types = (req.get("types") or [0]) if req.get("format") == "json" else [0]
         pts = [[round(rnd.uniform(min(la), max(la)), 4), round(rnd.uniform(min(lo), max(lo)), 4),
-                round(rnd.expovariate(1 / 12), 1), rnd.choice("lnh"), (req.get("satellites") or ["NOAA20"])[0]]
+                round(rnd.expovariate(1 / 12), 1), rnd.choice("lnh"), (req.get("satellites") or ["NOAA20"])[0],
+                rnd.choice([0] * 8 + [1, 2, 2, 3])]
                for _ in range(rnd.randint(5, 60))]
+        pts = [p for p in pts if p[5] in types]
         if req.get("format") == "json":
-            return self.send(200, json.dumps({"total": len(pts), "points": pts}).encode())
+            by_type = {}
+            for p in pts:
+                by_type[str(p[5])] = by_type.get(str(p[5]), 0) + 1
+            return self.send(200, json.dumps({"total": len(pts), "byType": by_type, "points": pts}).encode())
         lines = ["acq_date,acq_time,latitude,longitude,sensor,satellite,confidence,conf_class,frp"]
         lines += [f"{req['from']},1830,{p[0]},{p[1]},VIIRS,{p[4]},{p[3]},{p[3]},{p[2]}" for p in pts]
         self.send(200, ("\n".join(lines) + "\n").encode(), "text/csv; charset=utf-8",

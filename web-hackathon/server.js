@@ -280,13 +280,16 @@ async function handleHarmonizedRaw(req, res) {
   }
 }
 
-// POST { area | polygon, from: "YYYY-MM-DD", to: "YYYY-MM-DD", format: "csv" | "json", satellites?: [...] }
+// POST { area | polygon, from: "YYYY-MM-DD", to: "YYYY-MM-DD", format: "csv" | "json", satellites?: [...], types?: [...] }
 //   csv  -> every vegetation-fire detection in the area and dates (all satellites unless `satellites` is given),
 //           up to HOTSPOT_CSV_MAX rows; headers X-Rows / X-Truncated.
-//   json -> { total, points: [[lat, lon, frp, conf_class, satellite], ...] }, the HOTSPOT_JSON_MAX strongest, for the map.
+//   json -> { total, byType, points: [[lat, lon, frp, conf_class, satellite, fire_type], ...] }, the HOTSPOT_JSON_MAX
+//           strongest, for the map. `types` picks FIRMS fire types (0 vegetation, 1 volcano, 2 static land source,
+//           3 offshore; NRT rows have no type and count as 0); default [0]. byType: { "<type>": count } before the cap.
 const HOTSPOT_CSV_MAX = 200_000;
 const HOTSPOT_JSON_MAX = 3_000;
 const SATELLITES = ["Terra", "Aqua", "SNPP", "NOAA20", "NOAA21"];
+const FIRE_TYPES = [0, 1, 2, 3];
 const CSV_COLUMNS = ["acq_date", "acq_time", "latitude", "longitude", "sensor", "satellite", "confidence", "conf_class",
   "frp", "brightness", "bright_2", "scan", "track", "daynight", "fire_type", "processing", "version"];
 
@@ -313,8 +316,12 @@ async function handleHotspots(req, res) {
   }
   const sats = Array.isArray(body.satellites) ? body.satellites.filter((s) => SATELLITES.includes(s)) : SATELLITES;
   if (!sats.length) return sendJson(res, 400, { error: "No valid satellites." });
+  // The CSV stays vegetation-only (what the calendar counts); only the map can ask for other fire types.
+  const types = asJson && Array.isArray(body.types)
+    ? [...new Set(body.types.map(Number))].filter((t) => FIRE_TYPES.includes(t)).sort() : [0];
+  if (!types.length) return sendJson(res, 400, { error: "No valid fire types." });
 
-  const cacheKey = asJson ? `dots:${geo.key}:${body.from}:${body.to}:${sats.join()}` : null;
+  const cacheKey = asJson ? `dots:${geo.key}:${body.from}:${body.to}:${sats.join()}:${types.join()}` : null;
   const hit = cacheKey && cache.get(cacheKey);
   if (hit && Date.now() - hit.t < CACHE_MS) return sendJson(res, 200, hit.body);
 
@@ -322,15 +329,19 @@ async function handleHotspots(req, res) {
     const bad = await checkArea(geo);
     if (bad) return sendJson(res, 200, { error: bad });
     const where = `ST_Intersects(h.geom, (SELECT ${geo.sql})) AND h.acq_date BETWEEN $2::date AND $3::date
-                   AND coalesce(h.fire_type, 0) = 0 AND h.satellite = ANY($4::text[])`;
-    const params = [geo.param, body.from, body.to, sats];
+                   AND coalesce(h.fire_type, 0) = ANY($5::int[]) AND h.satellite = ANY($4::text[])`;
+    const params = [geo.param, body.from, body.to, sats, types];
     if (asJson) {
       const { rows } = await pool.query(
-        `SELECT count(*) OVER () AS total, h.latitude, h.longitude, h.frp, h.conf_class, h.satellite
+        `SELECT count(*) OVER () AS total, count(*) OVER (PARTITION BY coalesce(h.fire_type, 0)) AS n_type,
+                h.latitude, h.longitude, h.frp, h.conf_class, h.satellite, coalesce(h.fire_type, 0) AS fire_type
          FROM hotspots h WHERE ${where} ORDER BY h.frp DESC NULLS LAST LIMIT ${HOTSPOT_JSON_MAX}`, params);
+      const byType = {};
+      for (const r of rows) byType[r.fire_type] = Number(r.n_type);
       const out = {
         total: rows.length ? Number(rows[0].total) : 0,
-        points: rows.map((r) => [r.latitude, r.longitude, r.frp, r.conf_class, r.satellite]),
+        byType,
+        points: rows.map((r) => [r.latitude, r.longitude, r.frp, r.conf_class, r.satellite, r.fire_type]),
       };
       if (cache.size > 500) cache.clear();
       cache.set(cacheKey, { t: Date.now(), body: out });
