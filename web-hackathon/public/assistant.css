@@ -3,8 +3,6 @@
 
 .app.cmp-open .main { grid-template-columns: 400px minmax(0, 1fr) 380px; }
 @media (max-width: 1360px) { .app.cmp-open .main { grid-template-columns: 340px minmax(0, 1fr) 340px; } }
-.app.cmp-open .tabs { gap: 0; padding: 0 8px; }
-.app.cmp-open .tabs button { white-space: nowrap; padding-left: 7px; padding-right: 7px; }
 /* With the panel open the dock is narrower: keep the two charts, drop the notable-months list. */
 @media (min-width: 1201px) and (max-width: 1700px) {
   .app.cmp-open .charts { grid-template-columns: 1fr 1fr; }

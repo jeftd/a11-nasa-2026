@@ -88,10 +88,15 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .spacer{flex:1}
 .main{display:grid;grid-template-columns:400px minmax(0,1fr);min-height:0}
 .panel{border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;min-height:0;min-width:0;container:insp/inline-size}
-.tabs{display:flex;gap:0;padding:0 8px;border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
-.tabs button{white-space:nowrap;flex:1 0 auto;border:0;background:none;padding:12px 6px;font-size:14px;color:var(--text-3);font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
-.tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--text)}
+/* Segmented icon tabs: every tab is an icon; the selected one also shows its name, the rest name themselves on hover. */
+.tabs{display:flex;gap:2px;margin:10px 12px;padding:3px;border-radius:8px;background:var(--surface-2);flex:none}
+.tabs button{flex:1 0 auto;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;border:0;background:none;height:32px;padding:0 10px;border-radius:6px;font-size:13px;color:var(--text-3);font-weight:500;cursor:pointer}
+.tabs button:hover{color:var(--text)}
+.tabs button .tl{display:none}
+.tabs button[aria-selected="true"] .tl{display:inline}
+.tabs button[aria-selected="true"]{flex-grow:2}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.tabs .tab-ink{display:none}
 .pane{padding:24px;overflow:auto;flex:1;min-height:0}
 .pane[hidden]{display:none}
 .stage{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0}
@@ -204,7 +209,7 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 /* Narrow inspector (e.g. with the Ember panel open): tighten so nothing overflows. */
 @container insp (max-width:380px){
   .pane{padding:20px 16px}
-  .tabs{padding:0 4px;gap:0}.tabs button{padding:12px 4px;font-size:12.5px}
+  .tabs{margin:8px 10px}
   .heat{grid-template-columns:34px repeat(12,1fr)}.heat .y{padding-right:6px}.heat .h{font-size:11px}
   .heat .typrow{font-size:10px}
   .seg button{padding:0 8px;font-size:13px}
@@ -300,6 +305,12 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17v.5"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <!-- Tab icons: Lucide (ISC) layout-dashboard, chart-line, calendar-check, flask-conical, file-text -->
+  <symbol id="i-t-overview" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></symbol>
+  <symbol id="i-t-season" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></symbol>
+  <symbol id="i-t-burn" viewBox="0 0 24 24"><path d="M8 2v4M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></symbol>
+  <symbol id="i-t-method" viewBox="0 0 24 24"><path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2"/><path d="M6.453 15h11.094M8.5 2h7"/></symbol>
+  <symbol id="i-t-report" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8M16 17H8M10 9H8"/></symbol>
   <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
   <symbol id="i-up2" viewBox="0 0 24 24"><path d="m6 13 6-6 6 6M6 19l6-6 6 6"/></symbol>
   <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
@@ -338,11 +349,11 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
   <div class="main">
     <aside class="panel">
       <nav class="tabs" role="tablist">
-        <button role="tab" aria-selected="true" data-t="overview">Overview</button>
-        <button role="tab" aria-selected="false" data-t="season">Season</button>
-        <button role="tab" aria-selected="false" data-t="burn">Burn calendar</button>
-        <button role="tab" aria-selected="false" data-t="method">Method</button>
-        <button role="tab" aria-selected="false" data-t="data">Report</button>
+        <button role="tab" aria-selected="true" data-t="overview" aria-label="Overview" data-tip="Overview"><svg class="i"><use href="#i-t-overview"/></svg><span class="tl">Overview</span></button>
+        <button role="tab" aria-selected="false" data-t="season" aria-label="Season" data-tip="Season"><svg class="i"><use href="#i-t-season"/></svg><span class="tl">Season</span></button>
+        <button role="tab" aria-selected="false" data-t="burn" aria-label="Burn calendar" data-tip="Burn calendar"><svg class="i"><use href="#i-t-burn"/></svg><span class="tl">Burn calendar</span></button>
+        <button role="tab" aria-selected="false" data-t="method" aria-label="Method" data-tip="Method"><svg class="i"><use href="#i-t-method"/></svg><span class="tl">Method</span></button>
+        <button role="tab" aria-selected="false" data-t="data" aria-label="Report" data-tip="Report"><svg class="i"><use href="#i-t-report"/></svg><span class="tl">Report</span></button>
       </nav>
 
       <section class="pane" id="p-overview" role="tabpanel">
@@ -1241,7 +1252,7 @@ async function renderMethod(){
 
 /* ================= tooltip ================= */
 const tip=$('tip');
-document.addEventListener('pointerover',e=>{const t=e.target.closest('[data-tip]');if(!t){tip.style.display='none';return}tip.textContent=t.dataset.tip;tip.style.display='block'});
+document.addEventListener('pointerover',e=>{const t=e.target.closest('[data-tip]');if(!t||t.getAttribute('aria-selected')==='true'){tip.style.display='none';return}tip.textContent=t.dataset.tip;tip.style.display='block'});
 document.addEventListener('pointermove',e=>{if(tip.style.display==='block'){tip.style.left=Math.min(e.clientX+12,innerWidth-272)+'px';tip.style.top=Math.max(8,e.clientY-36)+'px'}});
 
 /* ================= orchestration ================= */
