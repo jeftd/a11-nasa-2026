@@ -105,6 +105,7 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .float{position:absolute;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow)}
 .legend{left:16px;bottom:16px;padding:10px 12px;font-size:12px;color:var(--text-2);display:flex;flex-direction:column;gap:6px}
 .legend .row{display:flex;align-items:center;gap:8px}
+.legend .row[hidden]{display:none}
 .dotg{width:10px;height:10px;border-radius:50%;background:#FFB000;box-shadow:0 0 0 3px rgba(255,77,0,.35)}
 .outl{width:14px;height:10px;border:2px dashed var(--text);border-radius:2px}
 .layers{right:16px;top:16px;padding:8px;display:flex;flex-direction:column;gap:2px;font-size:13px}
@@ -124,8 +125,8 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .leaflet-control-attribution a{color:var(--text-2)!important}
 
 /* ---------- dock ---------- */
-.dock{border-top:1px solid var(--border);background:var(--surface);padding:12px 16px 16px}
-.tl{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:12px;align-items:center}
+.dock{border-top:1px solid var(--border);background:var(--surface);padding:12px 16px 16px;container-type:inline-size}
+.tl{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto auto;gap:12px;align-items:center}
 .tl .hop{display:flex;align-items:center;gap:4px}
 .btn.icon.sm{width:28px;height:28px;border-radius:6px}
 .btn.icon.sm[disabled]{opacity:.35;cursor:default}
@@ -135,6 +136,24 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .stripes .bars i.off{opacity:.25}
 .stripes .yrs span.mo{color:var(--text-3);font-size:11px}
 .tl .now{font-weight:600;min-width:120px;text-align:center}
+/* 72 h forecast: the step after "now" on the timeline (dashed = not observed yet) */
+/* when the dock is narrow the forecast gets its own row so the timeline keeps its width */
+@container (max-width:820px){.tl .fcbtn{grid-column:1/-1;order:6;height:36px;min-width:0}.tl .fcbtn .sw{height:18px}.tl .fcbtn>span:last-child{display:flex;align-items:baseline;gap:8px}}
+.fcbtn{display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border:1px dashed var(--text-3);border-radius:8px;background:var(--surface);cursor:pointer;text-align:left;min-width:132px;align-self:start}
+.fcbtn:hover{background:var(--surface-2)}
+.fcbtn[aria-pressed="true"]{border-style:solid;border-color:var(--text);box-shadow:inset 0 0 0 1px var(--text)}
+.fcbtn .sw{width:12px;height:24px;border-radius:3px;flex:none;background:var(--surface-3)}
+.fcbtn b{display:block;font-size:15px;line-height:18px}
+.fcbtn small{display:block;font-size:12px;line-height:14px;color:var(--text-3);white-space:nowrap}
+.fccard{display:flex;gap:16px;align-items:flex-start;margin-top:4px}
+.fccard .pct{font-size:40px;line-height:44px;font-weight:600;letter-spacing:-.02em}
+.fccard .pct small{font-size:14px;font-weight:500;color:var(--text-2);margin-left:2px}
+.fcbar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface-2);margin-top:12px}
+.fcbar i{display:block;height:100%}
+.fckey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:12px;color:var(--text-2)}
+.fckey span{display:inline-flex;align-items:center;gap:6px}
+.fckey i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.fcsq{width:12px;height:12px;border-radius:2px;background:#d7301f;opacity:.75}
 .tl .now small{display:block;font-weight:400;color:var(--text-3);font-size:12px;line-height:14px}
 .stripes{position:relative;height:44px;cursor:pointer;touch-action:none}
 .stripes .bars{position:absolute;left:0;right:0;top:0;height:24px;display:flex;border-radius:4px;overflow:hidden;background:var(--surface-2)}
@@ -362,6 +381,10 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
           <h4 id="rangeTitle">Past years</h4>
           <svg id="range" role="img" aria-label="This month compared with past years"></svg>
         </div>
+        <div class="sect" id="fcSect">
+          <h4>Next 72 hours · forecast</h4>
+          <div id="fc"><p class="muted" style="margin:0">Loading forecast…</p></div>
+        </div>
         <div class="sect">
           <h4>What usually comes next</h4>
           <div id="next"></div>
@@ -468,8 +491,9 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
         <div class="float layers" aria-label="Layers">
           <label><input type="checkbox" id="lyHot" checked> Hotspots</label>
           <label><input type="checkbox" id="lyArea" checked> Area outline</label>
+          <label><input type="checkbox" id="lyFc"> 72 h forecast</label>
         </div>
-        <div class="float legend"><div class="row"><span class="dotg"></span><span id="legCount">Hotspots</span></div><div class="row"><span class="outl"></span>Area of interest</div></div>
+        <div class="float legend"><div class="row"><span class="dotg"></span><span id="legCount">Hotspots</span></div><div class="row"><span class="outl"></span>Area of interest</div><div class="row" id="legFc" hidden><span class="fcsq"></span><span>Forecast cells (0.25°), next 72 h</span></div></div>
         <form class="float coord" id="coord" hidden novalidate>
           <div class="eyebrow">Area around a point</div>
           <div class="cgrid">
@@ -502,6 +526,7 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
             <span class="zl" id="zoomLabel">All</span>
             <button class="btn icon sm" id="zoomIn" aria-label="Zoom in the timeline" title="Zoom in (or scroll on the timeline; Shift + scroll pans)"><svg class="i"><use href="#i-plus"/></svg></button>
           </div>
+          <button class="fcbtn" id="fcBtn" aria-pressed="false" title="Fire forecast for the next 72 hours (model)"><span class="sw" id="fcSw"></span><span><b id="fcPct">…</b><small>Next 72 h</small></span></button>
         </div>
         <div class="charts">
           <div class="chart"><h4 id="profTitle">Season profile</h4><svg id="prof"></svg></div>
@@ -559,6 +584,7 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="/harmonized.js"></script>
+<script src="/forecast.js"></script>
 <script>
 /* ================= data: harmonized series, loaded by harmonized.js (see DATA_CONTRACT.md) ================= */
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1019,6 +1045,53 @@ function renderNotable(){
   $('notable').querySelectorAll('button').forEach(b=>b.onclick=()=>select(+b.dataset.y,+b.dataset.m));
 }
 
+/* ================= 72 h forecast (data from forecast.js, see FORECAST.md) ================= */
+const FC_COL={very_high:'#7f0000',high:'#d7301f',moderate:'#fc8d59',low:'#fdd49e'};
+const FC_LBL={very_high:'Very high',high:'High',moderate:'Moderate',low:'Low'};
+const fcLayer=L.layerGroup();
+let FC=null,fcFor=null; // forecast of the current area and the area id it belongs to
+const fmtD=s=>{const d=new Date(s+'T00:00:00Z');return`${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`};
+const pctTxt=p=>p<.01?'<1':p>.99?'>99':String(Math.round(p*100));
+function setFcLayer(on){$('lyFc').checked=on;$('fcBtn').setAttribute('aria-pressed',on);$('legFc').hidden=!on;on?fcLayer.addTo(map):map.removeLayer(fcLayer);
+  const b=$('fcMap');if(b)b.innerHTML=`${icon('i-eye')}${on?'Hide':'Show'} on map`}
+$('lyFc').onchange=e=>setFcLayer(e.target.checked);
+$('fcBtn').onclick=()=>{const on=$('fcBtn').getAttribute('aria-pressed')!=='true';setFcLayer(on);
+  if(on){selectTab('overview');$('fcSect').scrollIntoView({behavior:'smooth',block:'nearest'})}};
+async function loadForecast(){
+  const a=area;fcFor=a.id;FC=null;renderForecast();
+  try{const f=await A11Forecast.forPolygon(a.poly);if(fcFor!==a.id)return;FC=f}
+  catch(err){if(fcFor!==a.id)return;console.warn('Forecast unavailable:',err.message);FC={error:err.message}}
+  renderForecast();announce()}
+function renderForecast(){
+  fcLayer.clearLayers();
+  const sw=$('fcSw');
+  if(!FC||FC.error){
+    $('fcPct').textContent=FC?'n/a':'…';sw.style.background=css('--surface-3');
+    $('fc').innerHTML=`<p class="muted" style="margin:0">${FC?'Forecast unavailable right now.':'Loading forecast…'}</p>`;return}
+  // Risk level = riskiest 0.25° cell (same scale as the API). The big % = chance of at least one hotspot anywhere in
+  // the area, which grows with the area's size.
+  const lv=FC.level,col=FC_COL[lv],m=FC.meta,n=FC.cells.length;
+  $('fcPct').textContent=`${pctTxt(FC.pAny)}%`;sw.style.background=col;
+  $('fcBtn').title=`${FC_LBL[lv]} risk · ${pctTxt(FC.pAny)}% chance of at least one hotspot in this area ${fmtD(m.valid_from)}–${fmtD(m.valid_to)} (model forecast)`;
+  const byLv=['very_high','high','moderate','low'].map(k=>[k,FC.cells.filter(c=>c.level===k).length]);
+  const hi=byLv[0][1]+byLv[1][1];
+  $('fc').innerHTML=`<div class="fade">
+    <div class="fccard"><div class="pct">${pctTxt(FC.pAny)}<small>%</small></div>
+      <div><span class="cat" style="margin-top:4px;background:${col};color:${ink(col)}">${FC_LBL[lv]} risk</span>
+      <p class="muted" style="margin:6px 0 0">chance that satellites detect at least one hotspot in this area <b style="color:var(--text)">${fmtD(m.valid_from)}–${fmtD(m.valid_to)}</b>.</p></div></div>
+    ${n?`<p class="sentence" style="margin-top:12px">Riskiest spot: <b>${pctTxt(FC.pMax)}%</b>. ${hi?`<b>${hi} of ${n}</b> forecast cells are high or very high.`:`None of the ${n} forecast cells is high.`}</p>
+      <div class="fcbar">${byLv.filter(([,c])=>c).map(([k,c])=>`<i style="width:${100*c/n}%;background:${FC_COL[k]}" data-tip="${c} cells · ${FC_LBL[k]}"></i>`).join('')}</div>
+      <div class="fckey">${byLv.map(([k])=>`<span><i style="background:${FC_COL[k]}"></i>${FC_LBL[k]}</span>`).join('')}</div>`
+      :`<p class="sentence" style="margin-top:12px">No fire activity here in the last 30 days or in 2024–2025, so the risk is very low.</p>`}
+    <p style="margin:12px 0 0"><button class="btn" id="fcMap" style="height:32px">${icon('i-eye')}${$('lyFc').checked?'Hide':'Show'} on map</button></p>
+    <div class="foot">Model forecast from satellite detections through ${fmtD(m.issue_date)} (VIIRS NOAA-20, 0.25° cells). Tested on all of 2025: when it says 50% or more, fire was detected about 3 times out of 4. A forecast, not a guarantee.</div></div>`;
+  $('fcMap').onclick=()=>setFcLayer(!$('lyFc').checked);
+  const inA=new Set(FC.cells.map(c=>c.lat+','+c.lon)),h=A11Forecast.RES/2;
+  FC.nearby.filter(c=>c.prob>=.05).forEach(c=>{const k=inA.has(c.lat+','+c.lon),cc=FC_COL[c.level];
+    L.rectangle([[c.lat-h,c.lon-h],[c.lat+h,c.lon+h]],{color:cc,weight:k?1.5:.5,fillColor:cc,fillOpacity:k?.5:.22,interactive:true})
+      .bindTooltip(`${pctTxt(c.prob)}% · ${FC_LBL[c.level]} · next 72 h<br>${c.hotspots_7d} hotspots in the last 7 days`,{sticky:true}).addTo(fcLayer)});
+}
+
 /* ================= date range (Report tab) ================= */
 // RG = { a, b }: first and last month of the range as timeline indices (idx). Used by the summary and every download.
 let RG=null;
@@ -1259,11 +1332,13 @@ document.addEventListener('pointermove',e=>{if(tip.style.display==='block'){tip.
 // What the user is looking at, for the Ember assistant (assistant.js).
 window.A11Context=()=>{if(!area)return null;const v=val(area,sel.y,sel.m),b=base(area,sel.y,sel.m),c=classify(v,b);
   return{area:area.name,kind:area.kind,period:`${FULL[sel.m]} ${sel.y}`,count:v,partial:isPartial(sel.y,sel.m),category:CATS[c.k].l,typical:Math.round(c.med),
-    synthetic:H.synthetic||area.synthetic===true,provisional:H.provisional}};
+    synthetic:H.synthetic||area.synthetic===true,provisional:H.provisional,
+    forecast_72h:FC&&!FC.error?{chance_any_hotspot:Math.round(FC.pAny*100)/100,riskiest_cell:Math.round(FC.pMax*100)/100,
+      risk_level_riskiest_cell:FC.level,window:`${FC.meta.valid_from} to ${FC.meta.valid_to}`,based_on_data_through:FC.meta.issue_date}:null}};
 const announce=()=>window.dispatchEvent(new Event('a11:context'));
 function select(y,m,fromPlay){if(isFuture(y,m))return;sel={y,m};if(!fromPlay&&playing){clearInterval(playing);playing=null;$('play').innerHTML=icon('i-play',16)}
   renderHero(true);renderMap();placeCursor();renderProf();renderAnnual();renderReported();if(!$('p-season').hidden)renderHeat();announce()}
-function renderAll(newArea){if(newArea)fitted=null;renderHero(false);renderMap();renderStripes();placeCursor();placeRange();renderProf();renderAnnual();renderNotable();renderHeat();renderBurn();
+function renderAll(newArea){if(newArea){fitted=null;loadForecast()}else renderForecast();renderHero(false);renderMap();renderStripes();placeCursor();placeRange();renderProf();renderAnnual();renderNotable();renderHeat();renderBurn();
   renderReported();renderRangeSum();if(!$('p-method').hidden)renderMethod();
   $('theme').innerHTML=icon(dark()?'i-sun':'i-moon',16);announce()}
 document.querySelector('.tabs').addEventListener('click',()=>setTimeout(()=>{if(!area)return;if(!$('p-season').hidden)renderHeat();if(!$('p-overview').hidden)renderRange(val(area,sel.y,sel.m),base(area,sel.y,sel.m),classify(val(area,sel.y,sel.m),base(area,sel.y,sel.m)))}));
