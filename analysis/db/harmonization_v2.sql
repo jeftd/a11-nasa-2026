@@ -5791,7 +5791,21 @@ RETURNS TABLE (month date, count integer, low integer, high integer, source text
           (SELECT (sum(pm.snpp) + p.beta) / (sum(pm.p_terra) + p.beta) FROM pm, par p
             WHERE p.link = 'TERRA' AND pm.month BETWEEN p.overlap_from AND p.overlap_to GROUP BY p.beta) AS c_terra,
           (SELECT (sum(pm.n20) + p.beta) / (sum(pm.p_snpp) + p.beta) FROM pm, par p
-            WHERE p.link = 'SNPP' AND pm.month BETWEEN p.overlap_from AND p.overlap_to GROUP BY p.beta) AS c_snpp
+            WHERE p.link = 'SNPP' AND pm.month BETWEEN p.overlap_from AND p.overlap_to GROUP BY p.beta) AS c_snpp,
+          -- Respaldo sin S-NPP (EE. UU.: el backfill no lo descarga). MODIS/Terra -> NOAA-20 directo:
+          -- k regional a S-NPP x k nacional S-NPP->NOAA-20, corregido en el polígono contra NOAA-20 (2018-04..2025-12).
+          (SELECT (sum(pm.n20) + p.beta) / (sum(ns.k * pm.p_modis) + p.beta) FROM pm, par p, par q,
+                  harmonization_factors ns
+            WHERE p.link = 'MODIS' AND q.link = 'SNPP' AND ns.link = 'SNPP' AND ns.ry = -999 AND ns.m = pm.m
+              AND pm.month BETWEEN q.overlap_from AND q.overlap_to GROUP BY p.beta) AS c_modis_n20,
+          (SELECT (sum(pm.n20) + p.beta) / (sum(ns.k * pm.p_terra) + p.beta) FROM pm, par p, par q,
+                  harmonization_factors ns
+            WHERE p.link = 'TERRA' AND q.link = 'SNPP' AND ns.link = 'SNPP' AND ns.ry = -999 AND ns.m = pm.m
+              AND pm.month BETWEEN q.overlap_from AND q.overlap_to GROUP BY p.beta) AS c_terra_n20,
+          -- ¿El polígono tiene S-NPP en sus traslapes (2012-02..2025-12)? Si no, se usa el respaldo.
+          coalesce((SELECT sum(pm.snpp) > 0 FROM pm, par a, par b
+                     WHERE a.link = 'MODIS' AND b.link = 'SNPP' AND pm.month BETWEEN a.overlap_from AND b.overlap_to),
+                   false) AS has_snpp
     ),
     months AS (
         SELECT g::date AS month, extract(month FROM g)::int AS m
@@ -5800,13 +5814,16 @@ RETURNS TABLE (month date, count integer, low integer, high integer, source text
     est AS (
         SELECT mo.month,
                CASE WHEN mo.month >= date '2018-04-01' THEN 'N20'
-                    WHEN mo.month >= date '2012-02-01' THEN 'SNPP'
+                    WHEN mo.month >= date '2012-02-01' AND c.has_snpp THEN 'SNPP'
                     WHEN mo.month >= date '2002-07-01' THEN 'MODIS'
                     ELSE 'TERRA' END AS era,
                CASE WHEN mo.month >= date '2018-04-01' THEN coalesce(pm.n20, 0)::float8
-                    WHEN mo.month >= date '2012-02-01' THEN coalesce(c.c_snpp, 1) * coalesce(pm.p_snpp, 0)
-                    WHEN mo.month >= date '2002-07-01' THEN coalesce(c.c_snpp, 1) * ns.k * coalesce(c.c_modis, 1) * coalesce(pm.p_modis, 0)
-                    ELSE coalesce(c.c_snpp, 1) * ns.k * coalesce(c.c_terra, 1) * coalesce(pm.p_terra, 0) END AS h
+                    WHEN mo.month >= date '2012-02-01' AND c.has_snpp THEN coalesce(c.c_snpp, 1) * coalesce(pm.p_snpp, 0)
+                    WHEN mo.month >= date '2002-07-01' AND c.has_snpp
+                         THEN coalesce(c.c_snpp, 1) * ns.k * coalesce(c.c_modis, 1) * coalesce(pm.p_modis, 0)
+                    WHEN mo.month >= date '2002-07-01' THEN ns.k * coalesce(c.c_modis_n20, 1) * coalesce(pm.p_modis, 0)
+                    WHEN c.has_snpp THEN coalesce(c.c_snpp, 1) * ns.k * coalesce(c.c_terra, 1) * coalesce(pm.p_terra, 0)
+                    ELSE ns.k * coalesce(c.c_terra_n20, 1) * coalesce(pm.p_terra, 0) END AS h
         FROM months mo CROSS JOIN corr c
         LEFT JOIN pm ON pm.month = mo.month
         LEFT JOIN harmonization_factors ns ON ns.link = 'SNPP' AND ns.ry = -999 AND ns.m = mo.m
@@ -5837,7 +5854,7 @@ CREATE OR REPLACE FUNCTION harmonized_index_json() RETURNS jsonb LANGUAGE sql ST
         'baseline', jsonb_build_object('first_year', 2001, 'last_year', extract(year FROM t.d)::int - 1),
         'units', 'VIIRS-equivalent (NOAA-20) vegetation-fire hotspots per month, nominal/high confidence',
         'reference', 'VIIRS (NOAA-20)',
-        'method', 'Reference VIIRS NOAA-20 (2018-04 on). 2012-02..2018-03: S-NPP x NOAA-20/S-NPP factor. 2002-07..2012-01: MODIS Terra+Aqua x MODIS->S-NPP factor; before 2002-07: Terra-only factor. Factors per 1-degree region and calendar month, shrunk to the national month factor, plus a local correction for the polygon. Vegetation fires, nominal/high confidence; NRT static sources removed. Low/high = 10-90% range from leave-one-year-out validation.',
+        'method', 'Reference VIIRS NOAA-20 (2018-04 on). 2012-02..2018-03: S-NPP x NOAA-20/S-NPP factor. 2002-07..2012-01: MODIS Terra+Aqua x MODIS->S-NPP factor; before 2002-07: Terra-only factor. Factors per 1-degree region and calendar month, shrunk to the national month factor, plus a local correction for the polygon. Areas with no S-NPP data (United States): MODIS/Terra calibrated straight to NOAA-20 through 2018-03. Factors calibrated on Mexico; elsewhere the Mexican national month factors apply. Vegetation fires, nominal/high confidence; NRT static sources removed. Low/high = 10-90% range from leave-one-year-out validation.',
         'areas', (SELECT coalesce(jsonb_agg(jsonb_build_object('id', id, 'name', name, 'kind', kind, 'file', 'areas/' || id)
                                             ORDER BY sort_order, name), '[]'::jsonb) FROM areas))
     FROM (SELECT max(acq_date) AS d FROM hotspots) t;

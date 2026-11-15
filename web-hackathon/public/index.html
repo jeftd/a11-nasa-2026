@@ -469,13 +469,14 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
         <div class="sect">
           <h4>Cross-validation by year</h4>
           <table class="mtab" id="mTab"></table>
-          <div class="foot">Each year is predicted with the ratio of the <i>other</i> overlap years (leave-one-year-out), so the check never sees the year it tests.</div>
+          <div class="foot">Each year is predicted with the ratio of the <i>other</i> overlap years (leave-one-year-out), so the check never sees the year it tests. This is a simplified check (one NOAA-20/MODIS ratio per area, straight MODIS → NOAA-20); the calendar itself uses the full method below, chained through S-NPP with regional monthly factors.</div>
         </div>
         <div class="sect notes">
           <h4>How the record is harmonized</h4>
           <p id="mMethod"></p>
-          <p><b>Why a ratio.</b> VIIRS (375 m) sees smaller fires than MODIS (1 km), so it reports several times more hotspots for the same fires, but both follow the same season. Scaling MODIS to the VIIRS level of each area puts 25 years on one scale.</p>
-          <p><b>Uncertainty.</b> MODIS-era months carry a low–high range from the spread of the yearly ratios (10th–90th percentile).</p>
+          <p><b>Why a ratio.</b> VIIRS (375 m) sees smaller fires than MODIS (1 km), so it reports several times more hotspots for the same fires, but both follow the same season. Scaling the older sensors to the NOAA-20 level, region by region and month by month, puts 25 years on one scale.</p>
+          <p><b>Uncertainty.</b> Months before 2018-04 carry a low–high range (10th–90th percentile of the leave-one-year-out errors).</p>
+          <p><b>Limitations.</b> The factors were calibrated on Mexico; elsewhere the Mexican national month factors apply. The United States has no S-NPP data here, so its record is MODIS-calibrated through 2018-03.</p>
         </div>
       </section>
 
@@ -781,9 +782,11 @@ function renderMap(){
   if(!types.length){$('legCount').textContent=`${MONTHS[sel.m]} ${sel.y} · no fire type selected`;return}
   if(!realData(area)){if(!types.includes(0)){$('legCount').textContent=`${MONTHS[sel.m]} ${sel.y} · only vegetation fires in this preview`;return}
     scatterDots(v,poly.getBounds());$('legCount').textContent=`${label}${v>700?' (700 shown)':''} · positions illustrative`;return}
-  // Real detections of this month from the database. MODIS-era months show the MODIS detections (the count above is
-  // their VIIRS-equivalent); VIIRS months show NOAA-20, the reference of the harmonized series.
-  const modis=(area.src[sel.y]?.[sel.m]||'VIIRS')!=='VIIRS',sats=modis?['Terra','Aqua']:['NOAA20'];
+  // Real detections of this month from the database: the sensor the harmonized count of that month comes from.
+  // MODIS-calibrated months show Terra+Aqua (also the US through 2018-03, which has no S-NPP data); VIIRS months show
+  // NOAA-20 from 2018-04 and S-NPP before (NOAA-20 did not fly yet).
+  const modis=(area.src[sel.y]?.[sel.m]||'VIIRS')!=='VIIRS',snpp=!modis&&sel.y*12+sel.m<2018*12+3;
+  const sats=modis?['Terra','Aqua']:snpp?['SNPP']:['NOAA20'];
   const from=dayStr(sel.y,sel.m,1),to=dayStr(sel.y,sel.m,isPartial(sel.y,sel.m)?NOW_D:daysIn(sel.y,sel.m));
   const key=`${area.id}|${from}|${sats}|${types}`,want=++dotsSeq;
   const draw=res=>{if(want!==dotsSeq)return;hotLayer.clearLayers();
@@ -795,7 +798,7 @@ function renderMap(){
       L.circleMarker(p,{radius:big?3.2:2.4,stroke:false,fillColor:c[0],fillOpacity:1,interactive:false}).addTo(hotLayer)});
     const bt=res.byType||{0:res.total},veg=types.includes(0)?(bt[0]||0):0,other=res.total-veg;
     const shown=res.points.length<res.total?` (strongest ${res.points.length.toLocaleString()} shown)`:'';
-    const base=!types.includes(0)?`${MONTHS[sel.m]} ${sel.y}`:modis?`${label} · ${veg.toLocaleString()} MODIS detections`:label;
+    const base=!types.includes(0)?`${MONTHS[sel.m]} ${sel.y}`:modis||snpp?`${label} · ${veg.toLocaleString()} ${modis?'MODIS':'S-NPP'} detections`:label;
     const oth=other>0?` · ${other.toLocaleString()} non-vegetation`:!types.includes(0)?' · no non-vegetation detections':'';
     const frp=bands.size<3?` · ${n.toLocaleString()} in the FRP range`:'';
     $('legCount').textContent=`${base}${oth}${shown}${frp}`};

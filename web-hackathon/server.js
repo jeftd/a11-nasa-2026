@@ -286,6 +286,10 @@ async function handleHarmonizedRaw(req, res) {
 //   json -> { total, byType, points: [[lat, lon, frp, conf_class, satellite, fire_type], ...] }, the HOTSPOT_JSON_MAX
 //           strongest, for the map. `types` picks FIRMS fire types (0 vegetation, 1 volcano, 2 static land source,
 //           3 offshore; NRT rows have no type and count as 0); default [0]. byType: { "<type>": count } before the cap.
+// NRT rows carry no fire_type: treat them as static land sources (2) when they fall on a known static site,
+// exactly as harmonize_polygon() does (is_static_site, analysis/db/harmonization_v2.sql), else as vegetation (0).
+// Keeps the map dots and the CSV consistent with what the calendar counts.
+const FIRE_TYPE_SQL = "coalesce(h.fire_type, CASE WHEN is_static_site(h.latitude, h.longitude) THEN 2 ELSE 0 END)";
 const HOTSPOT_CSV_MAX = 200_000;
 const HOTSPOT_JSON_MAX = 3_000;
 const SATELLITES = ["Terra", "Aqua", "SNPP", "NOAA20", "NOAA21"];
@@ -329,12 +333,12 @@ async function handleHotspots(req, res) {
     const bad = await checkArea(geo);
     if (bad) return sendJson(res, 200, { error: bad });
     const where = `ST_Intersects(h.geom, (SELECT ${geo.sql})) AND h.acq_date BETWEEN $2::date AND $3::date
-                   AND coalesce(h.fire_type, 0) = ANY($5::int[]) AND h.satellite = ANY($4::text[])`;
+                   AND ${FIRE_TYPE_SQL} = ANY($5::int[]) AND h.satellite = ANY($4::text[])`;
     const params = [geo.param, body.from, body.to, sats, types];
     if (asJson) {
       const { rows } = await pool.query(
-        `SELECT count(*) OVER () AS total, count(*) OVER (PARTITION BY coalesce(h.fire_type, 0)) AS n_type,
-                h.latitude, h.longitude, h.frp, h.conf_class, h.satellite, coalesce(h.fire_type, 0) AS fire_type
+        `SELECT count(*) OVER () AS total, count(*) OVER (PARTITION BY ${FIRE_TYPE_SQL}) AS n_type,
+                h.latitude, h.longitude, h.frp, h.conf_class, h.satellite, ${FIRE_TYPE_SQL} AS fire_type
          FROM hotspots h WHERE ${where} ORDER BY h.frp DESC NULLS LAST LIMIT ${HOTSPOT_JSON_MAX}`, params);
       const byType = {};
       for (const r of rows) byType[r.fire_type] = Number(r.n_type);

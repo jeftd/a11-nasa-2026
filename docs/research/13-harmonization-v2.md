@@ -113,6 +113,11 @@ python analysis/harmonization/test_sql.py    # optional: check against the DB wi
 ## 6. Limits
 
 - Calibrated on Mexico only; the national fallback factors are Mexico's.
+- United States: the US backfill does not download S-NPP, so a polygon with no S-NPP detections in
+  2012-02..2025-12 skips the S-NPP link. 2002-07..2018-03 become `p_modis × k_SNPP→N20 (national) × c`,
+  with the local correction `c = (ΣN20 + β) / (Σ p_modis·k_SNPP→N20 + β)` fitted directly against NOAA-20 in
+  2018-04..2025-12 (same for Terra-only months). Those months are labelled `MODIS_calibrated` and use the MODIS
+  uncertainty bins. Downloading S-NPP for the US would restore the full chain.
 - Small areas in the Terra-only months are uncertain (±50 % or more): shown as the estimate range.
 - The NRT static filter removes a few vegetation fires right next to flares/refineries (1.5 % nationally,
   more in Tabasco), and cannot catch a brand-new static source.
