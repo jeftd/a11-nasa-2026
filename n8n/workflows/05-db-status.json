@@ -70,6 +70,46 @@
           "name": "a11-db"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT harmonized_index_json() - 'areas' AS index,\n       (SELECT jsonb_agg(jsonb_build_object(\n            'id', a.id,\n            'months', jsonb_array_length(j -> 'months'),\n            'first', j -> 'months' -> 0,\n            'last', j -> 'months' -> -1,\n            'year_totals', (SELECT jsonb_object_agg(y, n) FROM (\n                 SELECT left(m ->> 'month', 4) AS y, sum((m ->> 'count')::int) AS n\n                 FROM jsonb_array_elements(j -> 'months') m GROUP BY 1 ORDER BY 1) t)))\n        FROM areas a, LATERAL (SELECT harmonized_area_json(a.id) AS j) x) AS areas;",
+        "options": {}
+      },
+      "name": "Harmonized",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "vc9QesVEe9bgweDY",
+          "name": "a11-db"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT rolname, rolcanlogin, rolpassword IS NOT NULL AS has_password FROM pg_authid WHERE rolname = 'a11_web';",
+        "options": {}
+      },
+      "name": "Web role",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        600
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "vc9QesVEe9bgweDY",
+          "name": "a11-db"
+        }
+      }
     }
   ],
   "connections": {
@@ -88,6 +128,16 @@
           },
           {
             "node": "Errors",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Harmonized",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Web role",
             "type": "main",
             "index": 0
           }

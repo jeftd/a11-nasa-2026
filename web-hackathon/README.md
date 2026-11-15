@@ -1,6 +1,10 @@
 # web-hackathon
 
-The deployed A11 site: the Burning Activity Calendar prototype (`public/index.html`, illustrative synthetic data) with the Ember assistant (`/api/chat` → n8n). The original placeholder page is at `/status.html`.
+The deployed A11 site: the Burning Activity Calendar prototype (`public/index.html`) with the Ember assistant (`/api/chat` → n8n). The original placeholder page is at `/status.html`.
+
+The calendar loads its monthly series from `/api/harmonized/*`, which `server.js` reads from the `a11-db`
+Postgres (SQL functions in `analysis/db/schema.sql`). Without a database it serves the fake files in
+`public/data/harmonized/`. Flow and format: [DATA_CONTRACT.md](DATA_CONTRACT.md).
 
 ## Architecture
 
@@ -18,6 +22,8 @@ The browser never sees the n8n URL, the secret, or the model credentials.
 | File | Page | Purpose |
 | --- | --- | --- |
 | `index.html` | `/` | Burning Activity Calendar prototype (map, inspector tabs, 2001→2026 timeline, charts) |
+| `harmonized.js` | `/` | Loads the series from `/api/harmonized/` (fallback `data/harmonized/`) and converts it for the calendar (the only code that knows the format) |
+| `data/harmonized/` | `/` | Fake series used when there is no database, see `DATA_CONTRACT.md` |
 | `assistant.js`, `assistant.css` | `/` | Ember assistant sidebar (below) |
 | `ember.js` | both | Ember mascot expression engine (gestures, blinking, eye-follow) |
 | `status.html`, `app.js`, `styles.css` | `/status.html` | Original placeholder with server/assistant status and the old floating chat |
@@ -67,7 +73,9 @@ Open http://localhost:3000.
 - Source: GitHub `leonardos4enz/a11-nasa-2026`, branch `main`, build path `/web-hackathon`
 - Build: Dockerfile
 - Port: 3000
-- Environment: `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`
+- Environment: `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`, `DATABASE_URL`
+  (`postgres://a11_web:<password>@learn_a11-db:5432/firms`; the read-only role `a11_web` is created by
+  `schema.sql` without login — enable it once with `ALTER ROLE a11_web LOGIN PASSWORD '<password>';`)
 - **Auto-deploy:** every push to `main` runs `.github/workflows/deploy.yml`, which calls the Easypanel
   deploy webhook stored in the repo secret `EASYPANEL_DEPLOY_WEBHOOK` (Easypanel → service → Deployments →
   Deploy Webhook). Keep Easypanel's own "Auto Deploy" off to avoid double deploys.
@@ -78,4 +86,7 @@ Open http://localhost:3000.
 | --- | --- | --- |
 | `/` | GET | Static site (`public/`) |
 | `/api/chat` | POST | `{ message, sessionId }` → `{ reply, sessionId }` |
-| `/health` | GET | Health check |
+| `/api/harmonized/index` | GET | Harmonized data index (areas, data date, baseline) |
+| `/api/harmonized/areas/<id>` | GET | Monthly harmonized series of one area |
+| `/api/harmonized/polygon` | POST | `{ polygon: [[lat, lon], ...] }` → series for a drawn area |
+| `/health` | GET | Health check (`chat`, `db` configured) |

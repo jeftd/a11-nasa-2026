@@ -225,7 +225,7 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
     <label class="field" title="Area of interest"><svg class="i"><use href="#i-search"/></svg><select id="area" aria-label="Area"></select></label>
     <button class="btn" id="draw"><svg class="i"><use href="#i-pen"/></svg><span class="hide-s">Draw area</span></button>
     <div class="spacer"></div>
-    <span class="pill hide-s" title="This prototype uses synthetic counts shaped like each region's fire season. It is not real FIRMS data."><svg class="i" style="width:14px;height:14px"><use href="#i-info"/></svg>Illustrative data</span>
+    <span class="pill hide-s" id="dataPill" title="Loading data…"><svg class="i" style="width:14px;height:14px"><use href="#i-info"/></svg><span>Illustrative data</span></span>
     <button class="btn ember-toggle" id="ember-toggle" aria-expanded="false" aria-controls="ember-panel" title="Ask Ember, the A11 assistant"><span class="ember-mini" id="ember-mini" aria-hidden="true"></span><span class="hide-s">Ask Ember</span></button>
     <button class="btn icon" id="theme" aria-label="Toggle dark mode"><svg class="i"><use href="#i-moon"/></svg></button>
     <button class="btn ink" id="export"><svg class="i"><use href="#i-dl"/></svg>Export</button>
@@ -357,31 +357,15 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
 <div class="tip" id="tip" role="tooltip"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="/harmonized.js"></script>
 <script>
-/* ================= data (synthetic, illustrative) ================= */
+/* ================= data: harmonized series, loaded by harmonized.js (see DATA_CONTRACT.md) ================= */
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const FULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const plural=n=>n.endsWith("ch")?n+"es":n+"s";
-const Y0=2001,Y1=2025,CY=2026,NOW_M=10,NOW_D=14;
-const AREAS=[
- {id:'stgo',name:'Santiago, Nuevo León',kind:'municipality',poly:[[25.52,-100.28],[25.53,-100.05],[25.30,-99.98],[25.20,-100.18],[25.33,-100.33]],
-  prof:[18,42,150,118,62,22,7,5,3,4,7,11],c26:{0:30,1:96,2:412,3:265,10:9}},
- {id:'arteaga',name:'Sierra de Arteaga',kind:'drawn area · NL–Coahuila',poly:[[25.48,-100.85],[25.45,-100.35],[25.15,-100.30],[25.10,-100.80]],
-  prof:[10,25,95,110,70,30,6,4,2,2,4,6],c26:{2:180,3:240}},
- {id:'ocos',name:'Ocosingo, Chiapas',kind:'municipality',poly:[[17.35,-92.30],[17.20,-91.30],[16.45,-90.95],[16.55,-91.95]],
-  prof:[40,160,620,1450,980,120,15,8,6,8,12,20],c26:{3:2410,4:1900}}
-];
+// Set from the data in boot(): baseline years Y0–Y1, current year/month/day, last MODIS-era year, provenance.
+let H,Y0,Y1,CY,NOW_M,NOW_D,ERA_END,AREAS=[];
 function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-function build(a,seed){
-  const r=rng(seed),d={};
-  for(let y=Y0;y<=CY;y++){
-    const yf=Math.exp((r()-.5)*1.1)*(1+(y-Y0)*.008);
-    d[y]=a.prof.map(v=>Math.max(0,Math.round(v*yf*Math.exp((r()-.5)*.9))));
-  }
-  Object.entries(a.c26||{}).forEach(([m,v])=>d[CY][+m]=v);
-  return d;
-}
-AREAS.forEach((a,i)=>a.d=build(a,1234+i*97));
 
 /* ================= stats ================= */
 const median=a=>{const s=[...a].sort((x,y)=>x-y),n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):0};
@@ -389,7 +373,10 @@ const q=(a,p)=>{const s=[...a].sort((x,y)=>x-y);return s[Math.min(s.length-1,Mat
 const daysIn=(y,m)=>new Date(y,m+1,0).getDate();
 const isFuture=(y,m)=>y>CY||(y===CY&&m>NOW_M);
 const isPartial=(y,m)=>y===CY&&m===NOW_M;
-function val(a,y,m){if(isFuture(y,m))return null;const v=a.d[y][m];return isPartial(y,m)?Math.round(v*NOW_D/daysIn(y,m)):v}
+// The current month in the data is already a to-date count; past months are scaled to the same days in base().
+function val(a,y,m){if(isFuture(y,m))return null;return a.d[y]?.[m]??0}
+const isEra=y=>y<=ERA_END;
+const lo=(a,y,m)=>a.lo[y]?.[m]??val(a,y,m),hi=(a,y,m)=>a.hi[y]?.[m]??val(a,y,m);
 function base(a,y,m){const f=isPartial(y,m)?NOW_D/daysIn(y,m):1,o=[];for(let yy=Y0;yy<=Y1;yy++)if(yy!==y)o.push(Math.round(a.d[yy][m]*f));return o}
 function pct(v,b){let lo=0,eq=0;b.forEach(x=>{if(x<v)lo++;else if(x===v)eq++});return 100*(lo+eq/2)/b.length}
 function classify(v,b){
@@ -423,13 +410,12 @@ function ink(hex){if(!hex||hex[0]!=='#')return css('--text');const n=parseInt(he
 const icon=(id,s=14)=>`<svg class="i" style="width:${s}px;height:${s}px"><use href="#${id}"/></svg>`;
 
 /* ================= state ================= */
-let area=AREAS[0],sel={y:CY,m:2},mode='count',allowed=new Set([0,10,11]),playing=null,lastBig=0;
+let area,sel,mode='count',allowed=new Set([0,10,11]),playing=null,lastBig=0;
 try{const t=localStorage.getItem('bac-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}
 const $=id=>document.getElementById(id);
 
 /* ================= header ================= */
 function fillAreas(){$('area').innerHTML='';AREAS.forEach(a=>$('area').add(new Option(`${a.name} — ${a.kind}`,a.id)));$('area').value=area.id}
-fillAreas();
 $('area').onchange=e=>{area=AREAS.find(a=>a.id===e.target.value);renderAll(true)};
 $('mark').innerHTML=RAMP_L.slice(0,9).map(c=>`<i style="background:${c}"></i>`).join('');
 $('theme').onclick=()=>{const t=dark()?'light':'dark';document.documentElement.dataset.theme=t;try{localStorage.setItem('bac-theme',t)}catch(e){};setTiles();renderAll()};
@@ -474,8 +460,21 @@ function endDraw(){if(drawing){map.removeLayer(drawing.line);drawing=null}$('dra
 map.on('click',e=>{if(!drawing)return;drawing.pts.push([e.latlng.lat,e.latlng.lng]);drawing.line.setLatLngs(drawing.pts)});
 map.on('dblclick',()=>{if(!drawing||drawing.pts.length<3)return;
   const pts=drawing.pts,km2=Math.abs(pts.reduce((s,p,i)=>{const q2=pts[(i+1)%pts.length];return s+(p[1]*q2[0]-q2[1]*p[0])},0)/2)*111*111*Math.cos(pts[0][0]*Math.PI/180);
-  const f=Math.max(.05,km2/750),a={id:'custom'+Date.now(),name:'Your area',kind:`drawn · ${Math.round(km2).toLocaleString()} km²`,poly:pts,prof:AREAS[0].prof.map(v=>v*f),c26:{}};
-  a.d=build(a,Math.round(km2));AREAS.push(a);area=a;endDraw();fillAreas();renderAll(true)});
+  endDraw();$('drawhint').classList.add('show');$('drawhint').querySelector('span').textContent='Counting fires in your area…';
+  addDrawn(pts,km2).finally(()=>{$('drawhint').classList.remove('show');$('drawhint').querySelector('span').textContent=drawHintText})});
+const drawHintText=$('drawhint').querySelector('span').textContent;
+async function addDrawn(pts,km2){
+  let a;
+  try{a=await A11Harmonized.drawn(pts);a.kind=`drawn · ${a.km2.toLocaleString()} km²`;a.synthetic=false}
+  catch(err){
+    if(/too large/i.test(err.message)){alert('That area is too large. Draw an area under 100,000 km².');return}
+    // No database behind the page (static preview or fake data): illustrative estimate, first area scaled by size.
+    console.warn('Drawn area from the database failed, using an illustrative estimate:',err.message);
+    const f=Math.max(.05,km2/750),r=rng(Math.round(km2)),src=AREAS[0],g=k=>{const o={};for(const y in src[k])o[y]=src[k][y].map(v=>v==null?null:Math.round(v*f*Math.exp((r()-.5)*.6)));return o};
+    a={kind:`drawn · ${Math.round(km2).toLocaleString()} km² · illustrative`,d:g('d'),src:src.src,synthetic:true};
+    a.lo={};a.hi={};for(const y in a.d){a.lo[y]=a.d[y].map(v=>v==null?null:isEra(+y)?Math.round(v*.82):v);a.hi[y]=a.d[y].map(v=>v==null?null:isEra(+y)?Math.round(v*1.2):v)}}
+  Object.assign(a,{id:'custom'+Date.now(),name:'Your area',poly:pts});
+  AREAS.push(a);area=a;fillAreas();renderAll(true)}
 
 /* ================= overview ================= */
 function renderHero(anim){
@@ -494,10 +493,11 @@ function renderHero(anim){
     <span class="cat" style="background:${bg};color:${ink(bg)}">${icon(cat.ic)}${cat.l}</span>
     <p class="sentence">${s}</p>
     ${streak>=2?`<div class="alert">${icon('i-alert',18)}<span>Above normal for ${streak} months in a row.</span></div>`:''}
-    ${partial?`<div class="foot">Updated 3 h ago · FIRMS near real time</div>`:''}</div>`;
+    ${partial?`<div class="foot">Updated ${ago(H.generatedAt)} · FIRMS near real time${H.synthetic?' · illustrative':''}</div>`:''}</div>`;
   countUp(anim?lastBig:v,v);lastBig=v;
   renderRange(v,b,c);renderNext();renderTyp();
 }
+function ago(t){const h=(Date.now()-t)/36e5;return isNaN(h)?'recently':h<1?`${Math.max(1,Math.round(h*60))} min ago`:h<48?`${Math.round(h)} h ago`:`${Math.round(h/24)} days ago`}
 function countUp(from,to){const el=$('bigN');if(from===to||matchMedia('(prefers-reduced-motion: reduce)').matches){el.textContent=to.toLocaleString();return}
   const t0=performance.now();const step=t=>{const k=Math.min(1,(t-t0)/450),e=1-(1-k)**3;el.textContent=Math.round(from+(to-from)*e).toLocaleString();if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)}
 function renderRange(v,b,c){
@@ -541,20 +541,20 @@ function renderHeat(){
   const pk=(y0,y1)=>{const s=MONTHS.map((_,m)=>{let a=0;for(let y=y0;y<=y1;y++)a+=area.d[y][m];return a});return s.indexOf(Math.max(...s))};
   $('seasonSum').innerHTML=`Fires here concentrate in <b>${FULL[start]}–${FULL[end]}</b>, peaking in <b>${FULL[peak]}</b>. Peak month 2001–10: ${MONTHS[pk(2001,2010)]} · 2016–25: ${MONTHS[pk(2016,2025)]}.`;
   let h='<div></div>'+MONTHS.map(m=>`<div class="h">${m[0]}</div>`).join('');
-  h+='<div class="y" style="line-height:24px" data-tip="Typical year: median of 2001–2025"><span class="lg">Typical</span><span class="sm">Typ.</span></div>'+t.map((v,m)=>{const bg=countColor(v);return`<div class="typrow" style="background:${bg};color:${ink(bg)}" data-tip="${FULL[m]} · typical ${v}">${v>=1000?Math.round(v/100)/10+'k':v}</div>`}).join('');
+  h+='<div class="y" style="line-height:24px" data-tip="Typical year: median of '+Y0+'–'+Y1+'"><span class="lg">Typical</span><span class="sm">Typ.</span></div>'+t.map((v,m)=>{const bg=countColor(v);return`<div class="typrow" style="background:${bg};color:${ink(bg)}" data-tip="${FULL[m]} · typical ${v}">${v>=1000?Math.round(v/100)/10+'k':v}</div>`}).join('');
   h+='<div class="gap"></div>';
   for(let y=CY;y>=Y0;y--){
     h+=`<div class="y">${y}</div>`;
     for(let m=0;m<12;m++){
       if(isFuture(y,m)){h+='<div class="c future"></div>';continue}
       const v=val(area,y,m),c=classify(v,base(area,y,m)),bg=mode==='count'?countColor(v):anomColor(c.k);
-      const tip=`${FULL[m]} ${y}${isPartial(y,m)?' (1–'+NOW_D+')':''}: ${v.toLocaleString()} hotspots · ${CATS[c.k].l}${y<=2011?` · estimate ${Math.round(v*.82)}–${Math.round(v*1.2)}`:''}`;
+      const tip=`${FULL[m]} ${y}${isPartial(y,m)?' (1–'+NOW_D+')':''}: ${v.toLocaleString()} hotspots · ${CATS[c.k].l}${isEra(y)?` · estimate ${lo(area,y,m)}–${hi(area,y,m)}`:''}`;
       h+=`<div class="c ${y===sel.y&&m===sel.m?'sel':''} ${isPartial(y,m)?'part':''}" style="background:${bg}" data-y="${y}" data-m="${m}" data-tip="${tip}"></div>`;
     }
   }
   $('heat').innerHTML=h+'<div class="eraband" id="eraband"></div>';
   // era bracket for 2001–2011
-  const r1=$('heat').querySelector('[data-y="2011"]'),r2=$('heat').querySelector('[data-y="2001"]'),top=$('heat').getBoundingClientRect().top;
+  const r1=$('heat').querySelector(`[data-y="${ERA_END}"]`),r2=$('heat').querySelector(`[data-y="${Y0}"]`),top=$('heat').getBoundingClientRect().top;
   if(r1&&r2){const eb=$('eraband');eb.style.top=(r1.getBoundingClientRect().top-top)+'px';eb.style.height=(r2.getBoundingClientRect().bottom-r1.getBoundingClientRect().top)+'px'}
   $('heat').querySelectorAll('.c[data-y]').forEach(el=>el.onclick=()=>{select(+el.dataset.y,+el.dataset.m);selectTab('overview')});
   $('keys').innerHTML=mode==='count'
@@ -564,7 +564,7 @@ function renderHeat(){
 
 /* ================= burn tab ================= */
 function renderBurn(){
-  const mean=MONTHS.map((_,m)=>{let s=0;for(let y=Y0;y<=Y1;y++)s+=area.d[y][m];return s/25}),tot=mean.reduce((a,b)=>a+b,0)||1,peak=mean.indexOf(Math.max(...mean));
+  const mean=MONTHS.map((_,m)=>{let s=0;for(let y=Y0;y<=Y1;y++)s+=area.d[y][m];return s/(Y1-Y0+1)}),tot=mean.reduce((a,b)=>a+b,0)||1,peak=mean.indexOf(Math.max(...mean));
   $('mgrid').innerHTML=MONTHS.map((m,i)=>`<button class="${allowed.has(i)?'allow':''} ${i===peak?'peak':''}" data-m="${i}" aria-pressed="${allowed.has(i)}">${allowed.has(i)?`<svg class="i ck"><use href="#i-check"/></svg>`:''}${m}<small>${Math.round(100*mean[i]/tot)}%${i===peak?' · <span class="pk">peak</span>':''}</small></button>`).join('');
   $('mgrid').querySelectorAll('button').forEach(b=>b.onclick=()=>{const m=+b.dataset.m;allowed.has(m)?allowed.delete(m):allowed.add(m);renderBurn()});
   if(!allowed.size){$('burnOut').innerHTML='<span class="muted">Select at least one month.</span>';return}
@@ -572,18 +572,18 @@ function renderBurn(){
   [...allowed].forEach(m=>{for(let y=2001;y<=2010;y++)e+=area.d[y][m];for(let y=2016;y<=2025;y++)l+=area.d[y][m]});
   const ch=e?Math.round(100*(l-e)/e):0,risky=[...allowed].filter(m=>mean[m]/tot>=.15).sort((a,b)=>a-b);
   $('burnOut').innerHTML=`<div class="eyebrow">Allowed: ${[...allowed].sort((a,b)=>a-b).map(m=>MONTHS[m]).join(', ')}</div>
-    <div class="k">${Math.round(share*100)}%</div><div class="muted">of this area's hotspots fall in these months in an average year (2001–2025).</div>
+    <div class="k">${Math.round(share*100)}%</div><div class="muted">of this area's hotspots fall in these months in an average year (${Y0}–${Y1}).</div>
     <p class="muted" style="margin:10px 0 0">Activity in these months has ${ch>=0?'grown':'fallen'} <b style="color:var(--text)">${Math.abs(ch)}%</b> from 2001–10 to 2016–25.</p>
     ${risky.length?`<div class="alert">${icon('i-alert',18)}<span>${risky.map(m=>FULL[m]).join(', ')} ${risky.length>1?'are':'is'} high-activity${risky.includes(peak)?', including the peak month':''}. Consider prohibiting burns then.</span></div>`:''}`;
 }
 
 /* ================= dock: timeline ================= */
-const idx=(y,m)=>(y-Y0)*12+m,TOTAL=idx(CY,NOW_M)+1;
+const idx=(y,m)=>(y-Y0)*12+m;let TOTAL;
 function renderStripes(){
   let h='';for(let i=0;i<TOTAL;i++){const y=Y0+Math.floor(i/12),m=i%12,c=catOf(area,y,m);h+=`<i style="background:${anomColor(c.k)}" data-tip="${FULL[m]} ${y} · ${CATS[c.k].l}"></i>`}
   $('bars').innerHTML=h;
   let yh='';for(let y=Y0;y<=CY;y+=5)yh+=`<span class="${100*idx(y,0)/TOTAL>92?'end':''}" style="left:${100*idx(y,0)/TOTAL}%">${y}</span>`;$('yrs').innerHTML=yh;
-  $('era').style.left='0';$('era').style.width=(100*idx(2012,0)/TOTAL)+'%';$('era').title='MODIS era, adjusted to VIIRS';
+  $('era').style.left='0';$('era').style.width=(100*idx(ERA_END+1,0)/TOTAL)+'%';$('era').title='MODIS era, adjusted to VIIRS';
   $('stripes').setAttribute('aria-valuemax',TOTAL-1);
 }
 function placeCursor(){const i=idx(sel.y,sel.m);$('cursor').style.left=`calc(${100*(i+.5)/TOTAL}% - 1px)`;$('stripes').setAttribute('aria-valuenow',i);$('stripes').setAttribute('aria-valuetext',`${FULL[sel.m]} ${sel.y}`);
@@ -619,14 +619,14 @@ function renderProf(){
 }
 function renderAnnual(){
   const svg=$('annual'),{W,H}=svgSize(svg),L=36,R=8,T=8,B=20,ys=[];
-  for(let y=Y0;y<=CY;y++){let s=0;for(let m=0;m<12;m++){const v=val(area,y,m);if(v!=null)s+=y===CY&&m===NOW_M?area.d[y][m]:v}ys.push([y,s])}
-  const mx=Math.max(...ys.map(v=>v[1]*(v[0]<=2011?1.2:1)),1)*1.05,bw=(W-L-R)/ys.length,y=v=>T+(H-T-B)*(1-v/mx);
+  for(let y=Y0;y<=CY;y++){let s=0,sl=0,sh=0;for(let m=0;m<12;m++){const v=val(area,y,m);if(v!=null){s+=v;sl+=lo(area,y,m);sh+=hi(area,y,m)}}ys.push([y,s,sl,sh])}
+  const mx=Math.max(...ys.map(v=>isEra(v[0])?v[3]:v[1]),1)*1.05,bw=(W-L-R)/ys.length,y=v=>T+(H-T-B)*(1-v/mx);
   const top3=[...ys].filter(v=>v[0]<CY).sort((a,b)=>b[1]-a[1]).slice(0,3).map(v=>v[0]);
   let h=`<defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="var(--surface-3)"/><line x1="0" y1="0" x2="0" y2="4" stroke="var(--text-3)" stroke-width="1" opacity=".5"/></pattern></defs>`;
   [0,.5,1].forEach(f=>{const v=Math.round(mx*f);h+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--border)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v>=1000?Math.round(v/100)/10+'k':v}</text>`});
-  ys.forEach(([yy,v],i)=>{const x=L+i*bw+1,w=Math.max(1,bw-2),isSel=yy===sel.y,modis=yy<=2011,ytd=yy===CY;
+  ys.forEach(([yy,v,vl,vh],i)=>{const x=L+i*bw+1,w=Math.max(1,bw-2),isSel=yy===sel.y,modis=isEra(yy),ytd=yy===CY;
     const fill=isSel?'#E8590C':top3.includes(yy)?'var(--text-2)':modis?'url(#hatch)':'var(--surface-3)';
-    h+=`<rect x="${x}" y="${y(v)}" width="${w}" height="${H-B-y(v)}" rx="1.5" fill="${ytd&&!isSel?'none':fill}" ${ytd?'stroke="var(--text-3)" stroke-dasharray="2 2"':''} data-tip="${yy}${ytd?' so far':''}: ${v.toLocaleString()} hotspots${modis?` (estimate ${Math.round(v*.82).toLocaleString()}–${Math.round(v*1.2).toLocaleString()})`:''}${top3.includes(yy)?' · top 3 year':''}" data-year="${yy}" style="cursor:pointer"/>`;
+    h+=`<rect x="${x}" y="${y(v)}" width="${w}" height="${H-B-y(v)}" rx="1.5" fill="${ytd&&!isSel?'none':fill}" ${ytd?'stroke="var(--text-3)" stroke-dasharray="2 2"':''} data-tip="${yy}${ytd?' so far':''}: ${v.toLocaleString()} hotspots${modis?` (estimate ${vl.toLocaleString()}–${vh.toLocaleString()})`:''}${top3.includes(yy)?' · top 3 year':''}" data-year="${yy}" style="cursor:pointer"/>`;
     if((yy-1)%5===0||yy===CY)h+=`<text x="${x+w/2}" y="${H-4}" text-anchor="middle" ${isSel?'style="fill:var(--text);font-weight:600"':''}>${String(yy).slice(2)==='01'||yy===CY?yy:"'"+String(yy).slice(2)}</text>`});
   svg.innerHTML=h;
   svg.querySelectorAll('[data-year]').forEach(r=>r.onclick=()=>{const yy=+r.dataset.year;select(yy,isFuture(yy,sel.m)?NOW_M:sel.m)});
@@ -641,9 +641,9 @@ function renderNotable(){
 /* ================= csv ================= */
 $('csv').onclick=()=>{
   const rows=['area,year,month,count,sensor_era,harmonized,low,high,baseline_median,percentile,category'];
-  for(let y=Y0;y<=CY;y++)for(let m=0;m<12;m++){const v=val(area,y,m);if(v==null)continue;const b=base(area,y,m),c=classify(v,b),h=y<=2011;
-    rows.push([`"${area.name}"`,y,m+1,v,h?'MODIS':'VIIRS',h,h?Math.round(v*.82):v,h?Math.round(v*1.2):v,median(b),c.p.toFixed(1),CATS[c.k].l].join(','))}
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`calendar_${area.name.replace(/\W+/g,'_')}_ILLUSTRATIVE.csv`;a.click()};
+  for(let y=Y0;y<=CY;y++)for(let m=0;m<12;m++){const v=val(area,y,m);if(v==null)continue;const b=base(area,y,m),c=classify(v,b),h=(area.src[y]?.[m]||'VIIRS')!=='VIIRS';
+    rows.push([`"${area.name}"`,y,m+1,v,h?'MODIS':'VIIRS',h,lo(area,y,m),hi(area,y,m),median(b),c.p.toFixed(1),CATS[c.k].l].join(','))}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`calendar_${area.name.replace(/\W+/g,'_')}${H.synthetic?'_ILLUSTRATIVE':''}.csv`;a.click()};
 
 /* ================= tooltip ================= */
 const tip=$('tip');
@@ -652,16 +652,32 @@ document.addEventListener('pointermove',e=>{if(tip.style.display==='block'){tip.
 
 /* ================= orchestration ================= */
 // What the user is looking at, for the Ember assistant (assistant.js).
-window.A11Context=()=>{const v=val(area,sel.y,sel.m),b=base(area,sel.y,sel.m),c=classify(v,b);
-  return{area:area.name,kind:area.kind,period:`${FULL[sel.m]} ${sel.y}`,count:v,partial:isPartial(sel.y,sel.m),category:CATS[c.k].l,typical:Math.round(c.med)}};
+window.A11Context=()=>{if(!area)return null;const v=val(area,sel.y,sel.m),b=base(area,sel.y,sel.m),c=classify(v,b);
+  return{area:area.name,kind:area.kind,period:`${FULL[sel.m]} ${sel.y}`,count:v,partial:isPartial(sel.y,sel.m),category:CATS[c.k].l,typical:Math.round(c.med),
+    synthetic:H.synthetic||area.synthetic===true,provisional:H.provisional}};
 const announce=()=>window.dispatchEvent(new Event('a11:context'));
 function select(y,m,fromPlay){if(isFuture(y,m))return;sel={y,m};if(!fromPlay&&playing){clearInterval(playing);playing=null;$('play').innerHTML=icon('i-play',16)}
   renderHero(true);renderMap();placeCursor();renderProf();renderAnnual();if(!$('p-season').hidden)renderHeat();announce()}
 function renderAll(newArea){if(newArea)fitted=null;renderHero(false);renderMap();renderStripes();placeCursor();renderProf();renderAnnual();renderNotable();renderHeat();renderBurn();
   $('theme').innerHTML=icon(dark()?'i-sun':'i-moon',16);announce()}
-new ResizeObserver(()=>{renderProf();renderAnnual();renderRange(val(area,sel.y,sel.m),base(area,sel.y,sel.m),classify(val(area,sel.y,sel.m),base(area,sel.y,sel.m)));map.invalidateSize()}).observe(document.querySelector('.stage'));
-document.querySelector('.tabs').addEventListener('click',()=>setTimeout(()=>{if(!$('p-season').hidden)renderHeat();if(!$('p-overview').hidden)renderRange(val(area,sel.y,sel.m),base(area,sel.y,sel.m),classify(val(area,sel.y,sel.m),base(area,sel.y,sel.m)))}));
-renderAll(true);
+document.querySelector('.tabs').addEventListener('click',()=>setTimeout(()=>{if(!area)return;if(!$('p-season').hidden)renderHeat();if(!$('p-overview').hidden)renderRange(val(area,sel.y,sel.m),base(area,sel.y,sel.m),classify(val(area,sel.y,sel.m),base(area,sel.y,sel.m)))}));
+
+/* ================= boot: load the harmonized data, then draw ================= */
+(async function boot(){
+  try{H=await A11Harmonized.load()}
+  catch(err){console.error('Harmonized data failed to load',err);
+    $('hero').innerHTML=`<div class="alert">${icon('i-alert',18)}<span>Could not load the harmonized data. Try reloading the page.</span></div>`;return}
+  Y0=H.firstYear;Y1=H.baselineLast;CY=H.currentYear;NOW_M=H.currentMonth;NOW_D=H.currentDay;ERA_END=H.eraEnd;TOTAL=idx(CY,NOW_M)+1;
+  AREAS=H.areas;area=AREAS[0];
+  // Open on the busiest month of the current year so far.
+  const cy=MONTHS.map((_,m)=>m<=NOW_M?val(area,CY,m):-1);sel={y:CY,m:cy.indexOf(Math.max(...cy))};
+  const pill=$('dataPill');
+  if(H.synthetic){pill.title=`Synthetic harmonized series (${H.meta.method}). It is not real FIRMS data.`}
+  else{pill.querySelector('span').textContent=`${H.provisional?'Provisional · ':''}Data through ${H.meta.data_through}`;
+    pill.title=`${H.meta.units} · reference ${H.meta.reference} · last load ${H.generatedAt.toISOString().slice(0,16).replace('T',' ')} UTC${H.provisional?` · ${H.meta.method}`:''}`}
+  fillAreas();renderAll(true);
+  new ResizeObserver(()=>{renderProf();renderAnnual();renderRange(val(area,sel.y,sel.m),base(area,sel.y,sel.m),classify(val(area,sel.y,sel.m),base(area,sel.y,sel.m)));map.invalidateSize()}).observe(document.querySelector('.stage'));
+})();
 </script>
 <script src="/ember.js"></script>
 <script src="/assistant.js"></script>

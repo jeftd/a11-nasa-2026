@@ -1,7 +1,13 @@
-// Minimal zero-dependency web server for the A11 hackathon site.
+// Minimal web server for the A11 hackathon site (only dependency: pg, for the harmonized data).
 // - Serves static files from ./public
 // - Exposes POST /api/chat, which proxies to a private n8n webhook so the
 //   agent URL and secret never reach the browser.
+// - Exposes the harmonized fire series from the a11-db Postgres (see DATA_CONTRACT.md):
+//     GET  /api/harmonized/index         -> index.json
+//     GET  /api/harmonized/areas/<id>     -> areas/<id>.json
+//     POST /api/harmonized/polygon        -> { months } for a polygon drawn in the page
+//   Without DATABASE_URL (or if the database fails) the GETs serve the fake files in
+//   public/data/harmonized/, which say "synthetic": true.
 // - GET /health for Easypanel health checks.
 // Upstream failures return 200 + { error } because the Easypanel proxy
 // replaces 5xx responses with its own HTML error page.
@@ -15,7 +21,22 @@ const PORT = Number(process.env.PORT || 3000);
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || "";
 const N8N_WEBHOOK_SECRET = process.env.N8N_WEBHOOK_SECRET || "";
 const PUBLIC_DIR = path.join(__dirname, "public");
+const FAKE_DIR = path.join(PUBLIC_DIR, "data", "harmonized");
 const MAX_MESSAGE_CHARS = 2000;
+const DATABASE_URL = process.env.DATABASE_URL || "";
+const CACHE_MS = 10 * 60_000; // data changes once a day; areas take ~1 s to compute
+
+// Postgres pool, only when DATABASE_URL is set (read-only role a11_web, see analysis/db/schema.sql).
+let pool = null;
+if (DATABASE_URL) {
+  try {
+    const { Pool } = require("pg");
+    pool = new Pool({ connectionString: DATABASE_URL, max: 4, statement_timeout: 20_000, idleTimeoutMillis: 30_000 });
+    pool.on("error", (err) => console.error("pg pool error", err.message));
+  } catch (err) {
+    console.error("pg module not available, serving fake harmonized data:", err.message);
+  }
+}
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -110,6 +131,80 @@ async function handleChat(req, res) {
   }
 }
 
+// ---- Harmonized data ----
+const cache = new Map(); // key -> { t, body }
+
+async function dbJson(sql, params) {
+  const { rows } = await pool.query(sql, params);
+  return rows[0] ? rows[0].j : null;
+}
+
+function fakeJson(file) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(FAKE_DIR, file), "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+// GET index / areas/<id>: database first (cached), fake files as fallback.
+async function handleHarmonizedGet(res, key) {
+  let sql, params, fakeFile;
+  if (key === "index") {
+    sql = "SELECT harmonized_index_json() AS j";
+    params = [];
+    fakeFile = "index.json";
+  } else {
+    const id = key.slice("areas/".length).replace(/\.json$/, "");
+    if (!/^[a-z0-9_-]{1,40}$/.test(id)) return sendJson(res, 404, { error: "Unknown area." });
+    sql = "SELECT harmonized_area_json($1) AS j";
+    params = [id];
+    fakeFile = path.join("areas", `${id}.json`);
+    key = `areas/${id}`;
+  }
+
+  if (pool) {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.t < CACHE_MS) return sendJson(res, 200, hit.body);
+    try {
+      const body = await dbJson(sql, params);
+      if (body == null) return sendJson(res, 404, { error: "Unknown area." });
+      cache.set(key, { t: Date.now(), body });
+      return sendJson(res, 200, body);
+    } catch (err) {
+      console.error("harmonized query failed, serving fake data:", key, err.message);
+    }
+  }
+  const fake = fakeJson(fakeFile);
+  return fake ? sendJson(res, 200, fake) : sendJson(res, 404, { error: "Not found." });
+}
+
+// POST { polygon: [[lat, lon], ...] } -> { area_km2, months } computed in the database.
+async function handleHarmonizedPolygon(req, res) {
+  const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
+  if (rateLimited(ip)) return sendJson(res, 429, { error: "Too many requests, slow down." });
+  if (!pool) return sendJson(res, 200, { error: "Database not configured." });
+  let pts;
+  try {
+    pts = JSON.parse(await readBody(req)).polygon;
+  } catch {
+    return sendJson(res, 400, { error: "Invalid JSON body." });
+  }
+  const ok = Array.isArray(pts) && pts.length >= 3 && pts.length <= 200 &&
+    pts.every((p) => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]) &&
+      Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
+  if (!ok) return sendJson(res, 400, { error: "polygon must be 3-200 [lat, lon] pairs." });
+  const ring = pts.map(([lat, lon]) => [lon, lat]);
+  ring.push(ring[0]);
+  try {
+    const body = await dbJson("SELECT harmonized_drawn_json($1) AS j", [JSON.stringify({ type: "Polygon", coordinates: [ring] })]);
+    return sendJson(res, 200, body);
+  } catch (err) {
+    console.error("polygon query failed", err.message);
+    return sendJson(res, 200, { error: /too large/i.test(err.message) ? err.message : "Could not compute this area." });
+  }
+}
+
 function serveStatic(req, res) {
   const urlPath = decodeURIComponent(new URL(req.url, "http://x").pathname);
   const filePath = path.normalize(path.join(PUBLIC_DIR, urlPath === "/" ? "index.html" : urlPath));
@@ -128,7 +223,16 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer((req, res) => {
-  if (req.url === "/health") return sendJson(res, 200, { ok: true, chat: Boolean(N8N_WEBHOOK_URL) });
+  if (req.url === "/health") return sendJson(res, 200, { ok: true, chat: Boolean(N8N_WEBHOOK_URL), db: Boolean(pool) });
+  const urlPath = new URL(req.url, "http://x").pathname;
+  if (urlPath === "/api/harmonized/polygon") {
+    if (req.method !== "POST") return sendJson(res, 405, { error: "Use POST." });
+    return handleHarmonizedPolygon(req, res);
+  }
+  if (urlPath === "/api/harmonized/index" || urlPath.startsWith("/api/harmonized/areas/")) {
+    if (req.method !== "GET") return sendJson(res, 405, { error: "Use GET." });
+    return handleHarmonizedGet(res, urlPath.slice("/api/harmonized/".length));
+  }
   if (req.url === "/api/chat") {
     if (req.method !== "POST") return sendJson(res, 405, { error: "Use POST." });
     return handleChat(req, res);

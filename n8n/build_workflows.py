@@ -207,6 +207,18 @@ UNION ALL SELECT 'staging', 'pending', null, null, count(*) FROM staging_csv
 UNION ALL SELECT 'grid', 'rows', null, null, count(*) FROM monthly_grid
 ORDER BY 1, 2;"""
 
+# What the website's /api/harmonized endpoints would return (summarised), and how long each area takes.
+HARMONIZED_SQL = """SELECT harmonized_index_json() - 'areas' AS index,
+       (SELECT jsonb_agg(jsonb_build_object(
+            'id', a.id,
+            'months', jsonb_array_length(j -> 'months'),
+            'first', j -> 'months' -> 0,
+            'last', j -> 'months' -> -1,
+            'year_totals', (SELECT jsonb_object_agg(y, n) FROM (
+                 SELECT left(m ->> 'month', 4) AS y, sum((m ->> 'count')::int) AS n
+                 FROM jsonb_array_elements(j -> 'months') m GROUP BY 1 ORDER BY 1) t)))
+        FROM areas a, LATERAL (SELECT harmonized_area_json(a.id) AS j) x) AS areas;"""
+
 status = {
     "name": "A11 DB status",
     "nodes": [
@@ -215,9 +227,12 @@ status = {
         pg_query("Pipeline status", [220, 0], "SELECT pipeline_status_json() AS status;"),
         pg_query("Errors", [220, 200],
                  "SELECT id, run_id, source, message FROM load_runs WHERE status <> 'ok' ORDER BY id DESC LIMIT 20;"),
+        pg_query("Harmonized", [220, 400], HARMONIZED_SQL),
+        pg_query("Web role", [220, 600], "SELECT rolname, rolcanlogin, rolpassword IS NOT NULL AS has_password "
+                                         "FROM pg_authid WHERE rolname = 'a11_web';"),
     ],
     "connections": {"Run": {"main": [[{"node": n, "type": "main", "index": 0}
-                                       for n in ("Status", "Pipeline status", "Errors")]]}},
+                                       for n in ("Status", "Pipeline status", "Errors", "Harmonized", "Web role")]]}},
     "settings": {"executionOrder": "v1"},
 }
 

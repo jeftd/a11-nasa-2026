@@ -324,3 +324,148 @@ END $$;
 -- Normalise trigger names written before start_pipeline_run() mapped them.
 UPDATE pipeline_runs SET trigger = 'manual' WHERE trigger = 'test';
 UPDATE pipeline_runs SET trigger = 'schedule' WHERE trigger = 'trigger';
+
+-- ============================================================================================
+-- Harmonized monthly series for the website (contract: web-hackathon/DATA_CONTRACT.md)
+--
+--   hotspots ─► polygon_monthly_raw(geom)    counts per month and satellite inside a polygon
+--            ─► harmonize_polygon(geom)       >>> THE HARMONIZATION STEP (provisional, replace it) <<<
+--            ─► harmonized_*_json()           the JSON documents served by web-hackathon/server.js
+-- ============================================================================================
+
+-- Areas offered in the calendar's area picker. Outlines are rough for now; replace with official boundaries.
+CREATE TABLE IF NOT EXISTS areas (
+    id         text PRIMARY KEY,
+    name       text    NOT NULL,
+    kind       text    NOT NULL,
+    sort_order integer NOT NULL DEFAULT 0,
+    geom       geometry(MultiPolygon, 4326) NOT NULL
+);
+INSERT INTO areas (id, name, kind, sort_order, geom) VALUES
+    ('stgo', 'Santiago, Nuevo León', 'municipality', 1, ST_Multi(ST_GeomFromText(
+        'POLYGON((-100.28 25.52,-100.05 25.53,-99.98 25.30,-100.18 25.20,-100.33 25.33,-100.28 25.52))', 4326))),
+    ('arteaga', 'Sierra de Arteaga', 'drawn area · NL–Coahuila', 2, ST_Multi(ST_GeomFromText(
+        'POLYGON((-100.85 25.48,-100.35 25.45,-100.30 25.15,-100.80 25.10,-100.85 25.48))', 4326))),
+    ('ocos', 'Ocosingo, Chiapas', 'municipality', 3, ST_Multi(ST_GeomFromText(
+        'POLYGON((-92.30 17.35,-91.30 17.20,-90.95 16.45,-91.95 16.55,-92.30 17.35))', 4326)))
+ON CONFLICT (id) DO NOTHING;
+
+-- Vegetation-fire detections per month and satellite inside a polygon (uses the hotspots_geom_idx index).
+CREATE OR REPLACE FUNCTION polygon_monthly_raw(p_geom geometry)
+RETURNS TABLE (month date, satellite text, hotspots bigint) LANGUAGE sql STABLE AS $$
+    SELECT date_trunc('month', h.acq_date)::date, h.satellite, count(*)
+    FROM hotspots h
+    WHERE ST_Intersects(h.geom, p_geom) AND coalesce(h.fire_type, 0) = 0
+    GROUP BY 1, 2;
+$$;
+
+-- >>> HARMONIZATION STEP — PROVISIONAL. Replace the body with the real method (docs/research/04-*.md);
+--     keep the signature and everything downstream (JSON, server, page) keeps working.
+-- One row per month from 2001-01 to the month of the latest detection, in VIIRS NOAA-20 units:
+--   * from the first full NOAA-20 month on: the NOAA-20 count                              (source VIIRS)
+--   * before: MODIS (Terra + Aqua) x k, k = median yearly NOAA-20/MODIS ratio of the polygon over the
+--     overlap years; low/high use the 10th/90th percentile of those ratios. Polygons with too few fires
+--     fall back to the ratio of the whole database.                                        (source MODIS_calibrated)
+CREATE OR REPLACE FUNCTION harmonize_polygon(p_geom geometry)
+RETURNS TABLE (month date, count integer, low integer, high integer, source text) LANGUAGE sql STABLE AS $$
+    WITH last AS (SELECT max(acq_date) AS d FROM hotspots),
+    v0 AS (  -- first full month with NOAA-20 data
+        SELECT (date_trunc('month', min(first_date) - 1) + interval '1 month')::date AS m
+        FROM data_freshness WHERE satellite = 'NOAA20'
+    ),
+    m AS (
+        SELECT r.month,
+               sum(r.hotspots) FILTER (WHERE r.satellite IN ('Terra', 'Aqua')) AS modis,
+               sum(r.hotspots) FILTER (WHERE r.satellite = 'NOAA20')         AS viirs
+        FROM polygon_monthly_raw(p_geom) r GROUP BY 1
+    ),
+    ratios AS (  -- one ratio per complete overlap year
+        SELECT extract(year FROM m.month) AS y, sum(m.viirs)::float8 / nullif(sum(m.modis), 0) AS r
+        FROM m, v0, last
+        WHERE m.month >= v0.m AND m.month < date_trunc('year', last.d)
+        GROUP BY 1 HAVING sum(m.modis) >= 5
+    ),
+    glob AS (
+        SELECT coalesce(sum(g.hotspots) FILTER (WHERE g.satellite = 'NOAA20')::float8
+                        / nullif(sum(g.hotspots) FILTER (WHERE g.satellite IN ('Terra', 'Aqua')), 0), 1) AS r
+        FROM monthly_grid g, v0, last
+        WHERE g.month >= v0.m AND g.month < date_trunc('year', last.d)
+    ),
+    k AS (
+        SELECT coalesce((SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY r) FROM ratios), (SELECT r FROM glob))        AS k,
+               coalesce((SELECT percentile_cont(0.1) WITHIN GROUP (ORDER BY r) FROM ratios), (SELECT r * 0.8 FROM glob))  AS k_lo,
+               coalesce((SELECT percentile_cont(0.9) WITHIN GROUP (ORDER BY r) FROM ratios), (SELECT r * 1.25 FROM glob)) AS k_hi
+    ),
+    months AS (
+        SELECT g::date AS month FROM last, generate_series(date '2001-01-01', date_trunc('month', last.d), interval '1 month') g
+    )
+    SELECT mo.month,
+           CASE WHEN mo.month >= v0.m THEN coalesce(m.viirs, 0) ELSE round(k.k    * coalesce(m.modis, 0)) END::int,
+           CASE WHEN mo.month >= v0.m THEN coalesce(m.viirs, 0) ELSE round(k.k_lo * coalesce(m.modis, 0)) END::int,
+           CASE WHEN mo.month >= v0.m THEN coalesce(m.viirs, 0) ELSE round(k.k_hi * coalesce(m.modis, 0)) END::int,
+           CASE WHEN mo.month >= v0.m THEN 'VIIRS' ELSE 'MODIS_calibrated' END
+    FROM months mo CROSS JOIN k CROSS JOIN v0 LEFT JOIN m ON m.month = mo.month
+    ORDER BY mo.month;
+$$;
+
+-- The "months" array of the contract for any polygon; the month of the latest detection is marked partial.
+CREATE OR REPLACE FUNCTION harmonized_polygon_json(p_geom geometry) RETURNS jsonb LANGUAGE sql STABLE AS $$
+    SELECT coalesce(jsonb_agg(
+               jsonb_build_object('month', to_char(h.month, 'YYYY-MM'), 'count', h.count,
+                                  'low', h.low, 'high', h.high, 'source', h.source)
+               || CASE WHEN h.month = date_trunc('month', (SELECT max(acq_date) FROM hotspots))
+                       THEN '{"partial": true}'::jsonb ELSE '{}'::jsonb END
+             ORDER BY h.month), '[]'::jsonb)
+    FROM harmonize_polygon(p_geom) h;
+$$;
+
+-- index.json of the contract:  SELECT harmonized_index_json();
+CREATE OR REPLACE FUNCTION harmonized_index_json() RETURNS jsonb LANGUAGE sql STABLE AS $$
+    SELECT jsonb_build_object(
+        'schema_version', 1,
+        'synthetic', false,
+        'provisional', true,   -- set to false once harmonize_polygon() holds the final method
+        'generated_at', to_char(coalesce((SELECT max(last_loaded_at) FROM data_freshness), now()) AT TIME ZONE 'UTC',
+                                'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+        'data_through', to_char(t.d, 'YYYY-MM-DD'),
+        'baseline', jsonb_build_object('first_year', 2001, 'last_year', extract(year FROM t.d)::int - 1),
+        'units', 'VIIRS-equivalent vegetation-fire hotspots per month',
+        'reference', 'VIIRS (NOAA-20)',
+        'method', 'PROVISIONAL: NOAA-20 counts; earlier months = MODIS x median yearly NOAA-20/MODIS ratio of the area',
+        'areas', (SELECT coalesce(jsonb_agg(jsonb_build_object('id', id, 'name', name, 'kind', kind, 'file', 'areas/' || id)
+                                            ORDER BY sort_order, name), '[]'::jsonb) FROM areas))
+    FROM (SELECT max(acq_date) AS d FROM hotspots) t;
+$$;
+
+-- areas/<id>.json of the contract:  SELECT harmonized_area_json('stgo');   (NULL if the id does not exist)
+CREATE OR REPLACE FUNCTION harmonized_area_json(p_id text) RETURNS jsonb LANGUAGE sql STABLE AS $$
+    SELECT jsonb_build_object(
+        'id', a.id, 'name', a.name, 'kind', a.kind,
+        'polygon', (SELECT jsonb_agg(jsonb_build_array(round(ST_Y(d.geom)::numeric, 4), round(ST_X(d.geom)::numeric, 4))
+                                     ORDER BY d.path)
+                    FROM ST_DumpPoints(ST_ExteriorRing(ST_GeometryN(a.geom, 1))) d),
+        'months', harmonized_polygon_json(a.geom))
+    FROM areas a WHERE a.id = p_id;
+$$;
+
+-- A polygon drawn in the page (GeoJSON geometry text):  SELECT harmonized_drawn_json('{"type":"Polygon",...}');
+CREATE OR REPLACE FUNCTION harmonized_drawn_json(p_geojson text) RETURNS jsonb LANGUAGE plpgsql STABLE AS $$
+DECLARE
+    g   geometry := ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(p_geojson), 4326));
+    km2 float8   := ST_Area(g::geography) / 1e6;
+BEGIN
+    IF km2 > 100000 THEN
+        RAISE EXCEPTION 'Area too large: % km2 (max 100,000)', round(km2::numeric);
+    END IF;
+    RETURN jsonb_build_object('area_km2', round(km2::numeric), 'months', harmonized_polygon_json(g));
+END $$;
+
+-- Read-only role for the website. Created without login; enable it once with your own password:
+--   ALTER ROLE a11_web LOGIN PASSWORD '<password>';
+-- then set DATABASE_URL=postgres://a11_web:<password>@learn_a11-db:5432/firms on the web-hackathon service.
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'a11_web') THEN CREATE ROLE a11_web NOLOGIN; END IF;
+END $$;
+GRANT CONNECT ON DATABASE firms TO a11_web;
+GRANT USAGE ON SCHEMA public TO a11_web;
+GRANT SELECT ON hotspots, areas, monthly_grid, data_freshness, pipeline_runs, pipeline_status TO a11_web;

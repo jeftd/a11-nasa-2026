@@ -64,7 +64,9 @@
     const c = ctx();
     if (!c) return "";
     return `\n\n[App context — the user is viewing: ${c.area} (${c.kind}); ${c.period}; ${c.count} hotspots${c.partial ? " so far this month" : ""}; ` +
-      `category "${c.category}"; a typical month like this has about ${c.typical}. The app currently shows illustrative data.]`;
+      `category "${c.category}"; a typical month like this has about ${c.typical}.` +
+      (c.synthetic ? " The app currently shows illustrative data."
+        : ` Counts are VIIRS-equivalent FIRMS hotspots${c.provisional ? " (provisional harmonization)" : ""}.`) + "]";
   }
   window.addEventListener("a11:context", () => { if (!panel.hidden) renderContext(); });
 
