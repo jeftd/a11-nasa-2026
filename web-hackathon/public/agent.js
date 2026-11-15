@@ -159,6 +159,20 @@
       ready();
       return { ok: true, ...state() };
     },
+    async get_month_data({ year }) {
+      ready();
+      const y = year ? Math.round(+year) : sel.y;
+      if (!(y >= Y0 && y <= CY)) return { ok: false, error: `Years go from ${Y0} to ${CY}.` };
+      const months = MONTHS.map((name, m) => {
+        const v = val(area, y, m);
+        if (v == null) return { month: name, future: true };
+        const c = classify(v, base(area, y, m));
+        return { month: name, count: v, category: CATS[c.k].l, typical: Math.round(c.med), ...(isPartial(y, m) ? { partial: true } : {}) };
+      });
+      const typ = typeof typical === "function" ? typical() : [];
+      const peak = typ.map((t, m) => ({ month: MONTHS[m], typical: t })).sort((a, b) => b.typical - a.typical).slice(0, 3);
+      return { ok: true, area: area.name, year: y, months, peak_months_typical: peak, baseline: `${Y0}–${Y1}` };
+    },
     async list_areas({ query = "", country = "all" }) {
       ready();
       const list = matches(query, country);
@@ -281,6 +295,7 @@
 
   const LABELS = {
     get_view: () => "Reading the screen",
+    get_month_data: (a) => `Reading the numbers${a.year ? ` for ${a.year}` : ""}`,
     list_areas: (a) => (a.query ? `Looking up areas: “${a.query}”` : "Listing areas"),
     select_area: (a) => `Searching “${a.query}”`,
     set_month: (a) => `Setting ${MONTHS[(a.month | 0) - 1] || "month"} ${a.year}`,

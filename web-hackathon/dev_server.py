@@ -78,6 +78,12 @@ class Handler(SimpleHTTPRequestHandler):
     def mock_chat(self, req):
         import re
         if req.get("toolResults"):
+            if req.get("final"):
+                return {"reply": "(mock) Final answer: out of steps, answering with what I have."}
+            ids = [str(r.get("id", "")) for r in req["toolResults"]]
+            if any(i.startswith("loop_") for i in ids):  # "loop": an agent that never stops acting
+                n = random.randint(1, 11)
+                return {"reply": "", "actions": [{"id": f"loop_{random.random()}", "name": "set_month", "args": {"year": 2020, "month": n}}]}
             res = [r.get("result") or {} for r in req["toolResults"]]
             view = next((r["view"] for r in reversed(res) if isinstance(r, dict) and r.get("view")), None)
             errs = [r.get("error") for r in res if isinstance(r, dict) and r.get("ok") is False]
@@ -106,6 +112,8 @@ class Handler(SimpleHTTPRequestHandler):
             actions.append(("set_theme", {"theme": "light"}))
         if "forecast" in low or "pronóstico" in low:
             actions.append(("set_layer", {"layer": "forecast", "visible": True}))
+        if "loop" in low:
+            return {"reply": "", "actions": [{"id": "loop_0", "name": "get_month_data", "args": {"year": 2024}}]}
         if "demo" in low:
             actions = [("select_area", {"query": "Santiago"}), ("set_month", {"year": 2024, "month": 4}),
                        ("set_hotspot_filter", {"fire_types": ["vegetation", "industrial"]}), ("open_tab", {"tab": "season"})]

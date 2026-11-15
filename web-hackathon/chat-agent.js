@@ -17,6 +17,8 @@ const LLM_MODEL = process.env.LLM_MODEL || "MiniMax-M2.7-highspeed";
 const LLM_TEMPERATURE = Number(process.env.LLM_TEMPERATURE || 0.5);
 const HISTORY_LIMIT = 40; // messages loaded per turn (tool calls and results count)
 const MAX_ROUNDS = 6; // model calls per request before giving up
+const TURN_STEP_LIMIT = 8; // model calls per user message; after that it must answer without tools
+const FALLBACK_REPLY = "I took too many steps on that one. Could you ask it in a simpler way?";
 
 const PAGE_TOOLS = [
   {
@@ -24,6 +26,15 @@ const PAGE_TOOLS = [
     description:
       "Read what the page shows right now: selected area, month, hotspot count, category, forecast, open tab, layers, filters, theme and the available years. Use it before answering about the screen if you are unsure.",
     parameters: { type: "object", properties: {} },
+  },
+  {
+    name: "get_month_data",
+    description:
+      "Read the monthly hotspot counts of the current area WITHOUT changing the page: for each month of the given year, the count, its category vs the 25-year baseline and the typical (median) count; plus the area's peak months. Use it to answer questions about other months or years.",
+    parameters: {
+      type: "object",
+      properties: { year: { type: "integer", description: "Four-digit year. Default: the year on screen." } },
+    },
   },
   {
     name: "list_areas",
@@ -148,7 +159,8 @@ You can USE THE PAGE for the user with tools (the user watches your cursor do it
 - "pon / set <month year>" → set_month. "the previous/next month with fires" → jump_fire_month.
 - tabs, map layers, hotspot filters, a point with a radius, dark/light mode, play the timeline → the matching tool.
 - If you are not sure what is on screen, call get_view.
-Do the actions the request needs, in order, and do not repeat an action that already succeeded. After acting, answer briefly with what changed and what is notable, using only the numbers the tools return.
+Use page actions ONLY when the user asks to change or show something on the page. For questions ("is this month unusual?", "when is the fire season?", "compare with 2024") answer from the [App context] line, and if you need other months use get_month_data, which reads the numbers WITHOUT moving the page. Never explore by moving the timeline month after month.
+Do the actions the request needs, in order; request independent actions together in one turn, and do not repeat an action that already succeeded. Use as few steps as possible (at most 3–4). After acting, answer briefly with what changed and what is notable, using only the numbers the tools return.
 
 Rules:
 - Reply in the language the user writes in. Be short: 1–4 sentences or a few "- " bullets. Allowed formatting: **bold**, *italic*, \`code\`, "- " bullets. No tables or headings.
@@ -258,25 +270,26 @@ const clip = (s, n) => (s.length > n ? s.slice(0, n) + "…" : s);
 // ---------------- agent ----------------
 function createAgent({ pool }) {
   const store = createStore(pool);
-  let model = null;
-  async function getModel() {
-    if (!model) {
+  let models = null;
+  // `act` may call tools; `answer` must reply in words (used when the turn ran out of steps).
+  async function getModels() {
+    if (!models) {
       const { ChatOpenAI } = await langchain();
-      model = new ChatOpenAI({
+      const base = new ChatOpenAI({
         model: LLM_MODEL,
         apiKey: LLM_API_KEY,
         temperature: LLM_TEMPERATURE,
         timeout: 60_000,
         maxRetries: 1,
         configuration: { baseURL: LLM_BASE_URL },
-      }).bindTools(
-        [...PAGE_TOOLS, ...SERVER_TOOLS].map(({ name, description, parameters }) => ({
-          type: "function",
-          function: { name, description, parameters },
-        })),
-      );
+      });
+      const tools = [...PAGE_TOOLS, ...SERVER_TOOLS].map(({ name, description, parameters }) => ({
+        type: "function",
+        function: { name, description, parameters },
+      }));
+      models = { act: base.bindTools(tools), answer: base.bindTools(tools, { tool_choice: "none" }) };
     }
-    return model;
+    return models;
   }
 
   // input: { message } for a new user turn, or { toolResults: [{ id, result }] } to resume after page actions.
@@ -298,19 +311,30 @@ function createAgent({ pool }) {
       toSave.push({ r: "human", c: input.message });
     }
 
-    const msgs = [new L.SystemMessage(SYSTEM_PROMPT), ...[...rows, ...toSave].map((o) => deserialize(o, L))];
-    const llm = await getModel();
+    const all = [...rows, ...toSave];
+    const msgs = [new L.SystemMessage(SYSTEM_PROMPT), ...all.map((o) => deserialize(o, L))];
+    const { act, answer } = await getModels();
+    // Model steps already taken in this user turn (since the last user message).
+    let steps = all.slice(all.map((r) => r.r).lastIndexOf("human") + 1).filter((r) => r.r === "ai").length;
     let lastText = "";
     try {
       for (let round = 0; round < MAX_ROUNDS; round++) {
-        const ai = await llm.invoke(msgs);
+        // Out of steps (or the browser says so): no more tools, answer now with what is known.
+        const final = input.final || steps >= TURN_STEP_LIMIT;
+        const prompt = final
+          ? [...msgs, new L.HumanMessage("[Step limit reached. Do not call any more tools: answer my question now, briefly, with what you already know.]")]
+          : msgs;
+        // tool_choice "none" is not supported everywhere; fall back to the normal model and drop any tool calls.
+        const ai = final ? await answer.invoke(prompt).catch(() => act.invoke(prompt)) : await act.invoke(prompt);
+        steps++;
         const text = stripThink(textOf(ai.content));
-        const calls = (ai.tool_calls || []).map((c) => ({ id: c.id || `call_${Math.random().toString(36).slice(2, 10)}`, name: c.name, args: c.args || {} }));
+        let calls = (ai.tool_calls || []).map((c) => ({ id: c.id || `call_${Math.random().toString(36).slice(2, 10)}`, name: c.name, args: c.args || {} }));
+        if (final) calls = [];
         const row = { r: "ai", c: text, tc: calls };
         toSave.push(row);
         msgs.push(deserialize(row, L));
         if (text) lastText = text;
-        if (!calls.length) return { reply: text, actions: [] };
+        if (!calls.length) return { reply: text || (final ? FALLBACK_REPLY : ""), actions: [] };
 
         const page = [];
         for (const call of calls) {
@@ -332,7 +356,7 @@ function createAgent({ pool }) {
         // Page tools: hand them to the browser; their results come back in the next request.
         if (page.length) return { reply: text, actions: page };
       }
-      return { reply: lastText || "I took too many steps on that one. Could you ask it in a simpler way?", actions: [] };
+      return { reply: lastText || FALLBACK_REPLY, actions: [] };
     } finally {
       await store.append(sessionId, toSave);
     }

@@ -123,6 +123,7 @@ async function handleAgentChat(res, payload, sessionId, message) {
     if (!Array.isArray(payload.toolResults) || !payload.toolResults.length) return sendJson(res, 400, { error: "Message is required." });
     input = {
       toolResults: payload.toolResults.slice(0, 12).map((r) => ({ id: String((r && r.id) || "").slice(0, 120), result: r && r.result })),
+      final: payload.final === true, // the browser's step budget is spent: answer without more actions
     };
   }
   try {

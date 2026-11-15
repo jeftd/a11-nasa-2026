@@ -141,16 +141,18 @@
     mood("thinking");
     const slow = setTimeout(() => mood("working"), 2500);
     const agentUI = window.EmberAgent;
-    let hidPanel = false, halted = 0;
+    let hidPanel = false, halted = 0, ended = false;
+    const MAX_STEPS = 8; // requests per question; the last one asks the agent to answer without more actions
     try {
       // The agent may answer with page actions; play them with the Ember cursor, send the results back, repeat.
       let req = { message: (q + contextSuffix()).slice(0, 2000), sessionId };
-      for (let step = 0; step < 8; step++) {
+      for (let step = 0; step < MAX_STEPS; step++) {
         const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req) });
         const data = await r.json();
         if (!r.ok || data.error) {
           history.push({ role: "err", text: data.error || "Something went wrong.", retry: q });
           mood("failed", 3000);
+          ended = true;
           break;
         }
         const actions = Array.isArray(data.actions) ? data.actions : [];
@@ -160,12 +162,13 @@
           if (/\b(thanks|thank you|gracias)\b/i.test(q)) mood("thankful", 3000);
           else if (/\b(fire|fires|hotspots?|season|incendios?)\b/i.test(q)) mood("found", 2600);
           else mood("done", 1600);
+          ended = true;
           break;
         }
         // After the user pressed Stop, answer further actions with "stopped" instead of playing them.
         if (halted) {
           if (halted++ > 1) break;
-          req = { sessionId, toolResults: actions.map((a) => ({ id: a.id, result: { ok: false, error: "Stopped by the user." } })) };
+          req = { sessionId, final: true, toolResults: actions.map((a) => ({ id: a.id, result: { ok: false, error: "Stopped by the user." } })) };
           continue;
         }
         // On narrow screens the panel is a drawer over the map: get it out of the way while Ember works.
@@ -186,8 +189,13 @@
           save(); render();
         }
         if (agentUI.stopped) { halted = 1; agentUI.end(); }
-        req = { sessionId, toolResults: results };
+        req = { sessionId, toolResults: results, ...(halted || step >= MAX_STEPS - 2 ? { final: true } : {}) };
         mood("thinking");
+      }
+      // Never leave the chat hanging on "Thinking…" if the loop ran out without a final answer.
+      if (!ended) {
+        history.push({ role: "bot", text: "I did several steps but could not finish the answer. Could you ask it again, more specifically?" });
+        mood("done", 1600);
       }
     } catch {
       history.push({ role: "err", text: "Network error. Check your connection.", retry: q });
