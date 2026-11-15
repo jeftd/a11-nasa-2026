@@ -188,7 +188,7 @@ Use page actions ONLY when the user asks to change or show something on the page
 Do the actions the request needs, in order; request independent actions together in one turn, and do not repeat an action that already succeeded. Use as few steps as possible (at most 3–4). After acting, answer briefly with what changed and what is notable, using only the numbers the tools return.
 
 Rules:
-- Reply in the language the user writes in. Be short: 1–4 sentences or a few "- " bullets. Allowed formatting: **bold**, *italic*, \`code\`, "- " bullets. No tables or headings.
+- LANGUAGE: always reply in the language of the user's LATEST message (English question → English answer, Spanish → Spanish), never in the language of earlier messages, the docs or the examples above (the Spanish phrases there are only examples of requests). Be short: 1–4 sentences or a few "- " bullets. Allowed formatting: **bold**, *italic*, \`code\`, "- " bullets. No tables or headings.
 - Never invent counts, dates or forecasts. Each user message ends with an [App context …] line describing the screen; use it.
 - If the data is marked illustrative/synthetic, say so when you cite numbers.
 - A hotspot is a satellite detection of a hot pixel, not a confirmed fire; MODIS (1 km) sees fewer and larger fires than VIIRS (375 m), which is why the counts are harmonized.
@@ -290,6 +290,18 @@ function pendingCalls(rows) {
   }
   return [];
 }
+// Tiny English/Spanish detector for the reply language (the site's users write in one of the two). Only the
+// user's own words count: the [App context ...] line the page appends is always English.
+const ES_WORDS = new Set("el la los las de del que y en un una es por para con como cómo qué cuál cuándo dónde por qué porque este esta está son hay muy más pero busca pon muestra abre dime explica quiero puedes mes año incendios fuegos gracias hola modo oscuro claro pestaña capa".split(" "));
+const EN_WORDS = new Set("the is are what which when where why how who does do of to in and an this that it for with show open set find search tell explain month year fires can you please thanks hi dark light mode tab layer unusual".split(" "));
+function detectLanguage(text) {
+  const own = String(text || "").split("\n\n[App context")[0].toLowerCase();
+  const words = own.match(/[a-záéíóúüñ]+/g) || [];
+  let es = /[¿¡]/.test(own) ? 2 : 0, en = 0; // accents alone are not a signal: place names carry them (Nuevo León)
+  for (const w of words) { if (ES_WORDS.has(w)) es++; if (EN_WORDS.has(w)) en++; }
+  if (es === en) return null; // too short or mixed: leave it to the model
+  return es > en ? "Spanish" : "English";
+}
 const clip = (s, n) => (s.length > n ? s.slice(0, n) + "…" : s);
 
 // ---------------- agent ----------------
@@ -339,7 +351,12 @@ function createAgent({ pool, rag }) {
     }
 
     const all = [...rows, ...toSave];
-    const msgs = [new L.SystemMessage(SYSTEM_PROMPT), ...all.map((o) => deserialize(o, L))];
+    // The language of the latest user message, told to the model explicitly every turn (models drift to the
+    // language of the prompt examples or of earlier turns otherwise).
+    const lastHuman = [...all].reverse().find((r) => r.r === "human");
+    const lang = lastHuman ? detectLanguage(lastHuman.c) : null;
+    const system = SYSTEM_PROMPT + (lang ? `\n\nThe user's latest message is in ${lang}. Write your whole reply in ${lang}.` : "");
+    const msgs = [new L.SystemMessage(system), ...all.map((o) => deserialize(o, L))];
     const { act, answer } = await getModels();
     // Model steps already taken in this user turn (since the last user message).
     let steps = all.slice(all.map((r) => r.r).lastIndexOf("human") + 1).filter((r) => r.r === "ai").length;
@@ -394,4 +411,4 @@ function createAgent({ pool, rag }) {
   return { run, get memory() { return store.kind; } };
 }
 
-module.exports = { createAgent, enabled: Boolean(LLM_API_KEY), model: LLM_MODEL };
+module.exports = { createAgent, detectLanguage, enabled: Boolean(LLM_API_KEY), model: LLM_MODEL };
