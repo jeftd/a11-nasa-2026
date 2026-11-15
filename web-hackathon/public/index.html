@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Burning Activity Calendar</title>
+<title>Ember Atlas · Burning Activity Calendar</title>
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -30,13 +31,43 @@ button,select{font:inherit;color:inherit}
 svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
 /* ---------- shell ---------- */
-.app{display:grid;grid-template-rows:56px minmax(0,1fr);height:100vh}
-.top{display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--border);background:var(--surface)}
+.app{display:grid;grid-template-rows:56px minmax(0,1fr);grid-template-columns:minmax(0,1fr);height:100vh}
+.top{display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--border);background:var(--surface);min-width:0;overflow:hidden}
 .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;white-space:nowrap;margin-right:8px}
-.brand .mark{width:24px;height:24px;border-radius:6px;display:grid;grid-template-columns:repeat(3,1fr);gap:2px;padding:3px;background:var(--text)}
-.brand .mark i{border-radius:1px}
+.brand .logo{height:22px;width:auto;display:block}
+.brand .logo.dk,:root[data-theme="dark"] .brand .logo.lt{display:none}
+:root[data-theme="dark"] .brand .logo.dk{display:block}
+.brand .sub{font-size:13px;font-weight:500;color:var(--text-3);padding-left:10px;border-left:1px solid var(--border);line-height:20px}
 .field{display:flex;align-items:center;gap:8px;height:36px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text-2)}
-.field select{border:0;background:transparent;color:var(--text);font-weight:500;max-width:300px;cursor:pointer;outline:none}
+/* ---------- area picker ---------- */
+.pick-btn{cursor:pointer;max-width:340px;min-width:0;font:inherit;color:var(--text-2)}
+.pick-btn:hover{background:var(--surface-2)}
+.pick-btn .pick-name{font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pick-btn .chev{margin-left:auto;color:var(--text-3)}
+.cc{display:inline-grid;place-items:center;min-width:24px;height:18px;padding:0 4px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:.04em;background:var(--surface-3);color:var(--text-2);flex:none}
+.cc.mx{background:#FDE7D9;color:#8A3B12}.cc.us{background:#DCE8F7;color:#1D4E89}
+:root[data-theme="dark"] .cc.mx{background:#4A2412;color:#FFC9A8}:root[data-theme="dark"] .cc.us{background:#16304F;color:#B9D3F2}
+.pick-pop{position:fixed;z-index:2500;width:400px;max-width:calc(100vw - 16px);background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.18);display:flex;flex-direction:column;max-height:min(560px,calc(100vh - 80px))}
+.pick-pop[hidden]{display:none}
+.pick-head{padding:12px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--border)}
+.segc{display:grid;grid-template-columns:repeat(3,1fr);padding:3px;border-radius:8px;background:var(--surface-2);gap:2px}
+.segc button{border:0;background:none;height:30px;border-radius:6px;cursor:pointer;font-weight:500;color:var(--text-2);display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.segc button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.pick-head input{height:36px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);padding:0 10px;font:inherit;width:100%}
+.pick-list{list-style:none;margin:0;padding:6px;overflow:auto;flex:1;min-height:0}
+.pick-list .grp{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3);padding:10px 8px 4px}
+.pick-list .opt{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer}
+.pick-list .opt:hover,.pick-list .opt.act{background:var(--surface-2)}
+.pick-list .opt[aria-selected="true"]{background:color-mix(in srgb,var(--text) 8%,transparent)}
+.pick-list .opt .t{display:flex;flex-direction:column;min-width:0;flex:1}
+.pick-list .opt .t b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pick-list .opt .t small{font-size:12px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pick-list .opt .n{font-size:12px;color:var(--text-2);text-align:right;white-space:nowrap}
+.pick-list .opt .n small{display:block;font-size:10px;color:var(--text-3)}
+.pick-list .opt .ck{width:16px;height:16px;color:var(--text);flex:none}
+.pick-list .empty{padding:20px 8px;color:var(--text-3);text-align:center}
+.pick-foot{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border)}
+.pick-foot .btn{flex:1;justify-content:center;height:34px;font-size:13px}
 .btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-weight:500;white-space:nowrap}
 .btn:hover{background:var(--surface-2)}
 .btn.ink{background:var(--text);color:var(--bg);border-color:var(--text)}
@@ -47,9 +78,9 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .spacer{flex:1}
 .main{display:grid;grid-template-columns:400px minmax(0,1fr);min-height:0}
 .panel{border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;min-height:0;min-width:0;container:insp/inline-size}
-.tabs{display:flex;gap:4px;padding:0 16px;border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none}
+.tabs{display:flex;gap:0;padding:0 10px;border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
-.tabs button{white-space:nowrap;flex:none;border:0;background:none;padding:12px 8px;color:var(--text-3);font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button{white-space:nowrap;flex:none;border:0;background:none;padding:12px 7px;font-size:13.5px;color:var(--text-3);font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--text)}
 .pane{padding:24px;overflow:auto;flex:1;min-height:0}
 .pane[hidden]{display:none}
@@ -212,7 +243,11 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
 .tip{position:fixed;pointer-events:none;z-index:3000;background:var(--text);color:var(--bg);font-size:12px;line-height:16px;padding:6px 8px;border-radius:6px;display:none;max-width:260px}
 
 /* ---------- responsive ---------- */
-@media (max-width:1200px){.top .hide-s{display:none}.field select{max-width:240px}.top{gap:8px}}
+/* Top bar: below ~1500 px the area tools go icon-only and the data pill truncates, so the bar never widens the page. */
+@media (max-width:1500px){#draw .hide-s,#coordBtn .hide-s{display:none}#draw,#coordBtn{width:36px;padding:0;justify-content:center}}
+.top #dataPill{min-width:0;flex:0 1 auto;overflow:hidden}.top #dataPill>span{overflow:hidden;text-overflow:ellipsis}.top .field{min-width:0;flex:0 1 auto}
+@media (max-width:1200px){.top .hide-s{display:none}.pick-btn{max-width:260px}.top{gap:8px}}
+@media (max-width:1400px){.brand .sub{display:none}}
 @media (max-width:1100px){.charts{grid-template-columns:1fr 1fr}.charts .chart:last-child{display:none}}
 @media (max-width:1060px) and (min-width:901px){.brand>span:last-child{display:none}.main{grid-template-columns:360px minmax(0,1fr)}}
 @media (max-width:900px){
@@ -226,7 +261,7 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
   .charts{grid-template-columns:1fr}
   .charts .chart:last-child{display:block}
   .big{font-size:44px;line-height:48px}
-  .field select{max-width:220px}
+  .pick-btn{max-width:none;flex:1 1 220px}
 }
 </style>
 <link rel="stylesheet" href="/fx.css">
@@ -262,10 +297,12 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
 
 <div class="app">
   <header class="top">
-    <div class="brand"><span class="mark" id="mark" aria-hidden="true"></span><span>Burning Activity Calendar</span></div>
-    <label class="field" title="Area of interest"><svg class="i"><use href="#i-search"/></svg><select id="area" aria-label="Area"></select></label>
-    <button class="btn" id="draw"><svg class="i"><use href="#i-pen"/></svg><span class="hide-s">Draw area</span></button>
-    <button class="btn" id="coordBtn" aria-expanded="false" aria-controls="coord" title="Area around a latitude/longitude"><svg class="i"><use href="#i-pin"/></svg><span class="hide-s">Coordinates</span></button>
+    <div class="brand"><img class="logo lt" src="/brand/ember-atlas-light.svg" alt="Ember Atlas" width="115" height="22"><img class="logo dk" src="/brand/ember-atlas.svg" alt="" aria-hidden="true" width="115" height="22"><span class="sub">Burning Activity Calendar</span></div>
+    <button type="button" class="field pick-btn" id="pickBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="pickPop" title="Choose an area of interest">
+      <svg class="i"><use href="#i-search"/></svg><span class="cc" id="pickCC"></span><span class="pick-name" id="pickName">Loading areas…</span><svg class="i chev"><use href="#i-down"/></svg>
+    </button>
+    <button class="btn" id="draw" title="Draw an area on the map" aria-label="Draw area"><svg class="i"><use href="#i-pen"/></svg><span class="hide-s">Draw area</span></button>
+    <button class="btn" id="coordBtn" aria-expanded="false" aria-controls="coord" title="Area around a latitude/longitude" aria-label="Coordinates"><svg class="i"><use href="#i-pin"/></svg><span class="hide-s">Coordinates</span></button>
     <div class="spacer"></div>
     <span class="pill hide-s" id="dataPill" title="Loading data…"><svg class="i" style="width:14px;height:14px"><use href="#i-info"/></svg><span>Illustrative data</span></span>
     <button class="btn ember-toggle" id="ember-toggle" aria-expanded="false" aria-controls="ember-panel" title="Ask Ember, the A11 assistant"><span class="ember-mini" id="ember-mini" aria-hidden="true"></span><span class="hide-s">Ask Ember</span></button>
@@ -455,6 +492,21 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
   </div>
 </div>
 <div class="ember-backdrop" id="ember-backdrop" hidden></div>
+<div class="pick-pop" id="pickPop" role="dialog" aria-label="Choose an area" hidden>
+  <div class="pick-head">
+    <div class="segc" role="group" aria-label="Country">
+      <button type="button" data-c="all" aria-pressed="true">All</button>
+      <button type="button" data-c="mx" aria-pressed="false"><span class="cc mx">MX</span>Mexico</button>
+      <button type="button" data-c="us" aria-pressed="false"><span class="cc us">US</span>United States</button>
+    </div>
+    <input id="pickQ" type="search" placeholder="Search areas…" aria-label="Search areas" autocomplete="off" aria-controls="pickList">
+  </div>
+  <ul class="pick-list" id="pickList" role="listbox" aria-label="Areas"></ul>
+  <div class="pick-foot">
+    <button type="button" class="btn" id="pickDraw"><svg class="i"><use href="#i-pen"/></svg>Draw an area</button>
+    <button type="button" class="btn" id="pickCoord"><svg class="i"><use href="#i-pin"/></svg>Around a point</button>
+  </div>
+</div>
 <div class="tip" id="tip" role="tooltip"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -516,9 +568,50 @@ try{const t=localStorage.getItem('bac-theme');if(t)document.documentElement.data
 const $=id=>document.getElementById(id);
 
 /* ================= header ================= */
-function fillAreas(){$('area').innerHTML='';AREAS.forEach(a=>$('area').add(new Option(`${a.name} — ${a.kind}`,a.id)));$('area').value=area.id}
-$('area').onchange=e=>{area=AREAS.find(a=>a.id===e.target.value);renderAll(true)};
-$('mark').innerHTML=RAMP_L.slice(0,9).map(c=>`<i style="background:${c}"></i>`).join('');
+/* ---------- area picker: country filter, search, grouped options ---------- */
+const CC_NAME={mx:'Mexico',us:'United States',other:'Other'};
+let pickCountry='all',pickItems=[],pickAct=-1;
+try{const c=localStorage.getItem('bac-country');if(c in CC_NAME||c==='all')pickCountry=c}catch(e){}
+const avg=a=>a.reduce((s,v)=>s+v,0)/a.length;
+const areaCountry=a=>a._cc||(a._cc=countryOf(avg(a.poly.map(p=>p[0])),avg(a.poly.map(p=>p[1])))||'other');
+const kindLabel=a=>a.kind.replace(/\s*·\s*US\b/,'');
+function perYear(a){if(a._py==null){const t=[];for(let y=Y0;y<=Y1;y++){let s=0;for(let m=0;m<12;m++)s+=a.d[y][m]||0;t.push(s)}a._py=median(t)}return a._py}
+const fmtK=n=>n>=1000?`${(n/1000).toFixed(n>=10000?0:1)}k`:`${Math.round(n)}`;
+function fillAreas(){const c=areaCountry(area);$('pickName').textContent=area.name;$('pickCC').textContent=c==='other'?'':c.toUpperCase();
+  $('pickCC').className=`cc ${c}`;$('pickCC').hidden=c==='other';$('pickBtn').title=`${area.name} — ${area.kind}`;if(!$('pickPop').hidden)renderPick()}
+function renderPick(){
+  const q=$('pickQ').value.trim().toLowerCase(),groups=[['drawn','Your areas'],['mx','Mexico'],['us','United States'],['other','Other']];
+  document.querySelectorAll('.segc button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.c===pickCountry));
+  const keep=a=>(pickCountry==='all'||areaCountry(a)===pickCountry)&&(!q||`${a.name} ${a.kind} ${CC_NAME[areaCountry(a)]}`.toLowerCase().includes(q));
+  pickItems=[];let h='';
+  for(const [g,label] of groups){const list=AREAS.filter(a=>keep(a)&&(g==='drawn'?a.drawn:!a.drawn&&areaCountry(a)===g));if(!list.length)continue;
+    h+=`<li class="grp" role="presentation">${label}</li>`;
+    list.forEach(a=>{const i=pickItems.push(a)-1,c=areaCountry(a),on=a===area;
+      h+=`<li class="opt${i===pickAct?' act':''}" role="option" id="po-${i}" data-i="${i}" aria-selected="${on}">
+        <span class="cc ${c}">${c==='other'?'··':c.toUpperCase()}</span>
+        <span class="t"><b>${a.name}</b><small>${kindLabel(a)}</small></span>
+        <span class="n">${fmtK(perYear(a))}<small>hotspots / yr</small></span>
+        ${on?'<svg class="i ck"><use href="#i-check"/></svg>':'<span style="width:16px"></span>'}</li>`})}
+  $('pickList').innerHTML=h||`<li class="empty">No areas match${q?` “${q.replace(/[<&]/g,'')}”`:''}. Draw one or use a point below.</li>`;
+  $('pickQ').setAttribute('aria-activedescendant',pickAct>=0?`po-${pickAct}`:'')}
+function placePick(){const r=$('pickBtn').getBoundingClientRect(),w=Math.min(400,innerWidth-16);
+  Object.assign($('pickPop').style,{left:`${Math.max(8,Math.min(r.left,innerWidth-w-8))}px`,top:`${r.bottom+6}px`})}
+function openPick(open){$('pickPop').hidden=!open;$('pickBtn').setAttribute('aria-expanded',open);
+  if(open){pickAct=-1;$('pickQ').value='';placePick();renderPick();$('pickQ').focus();$('pickList').querySelector('[aria-selected="true"]')?.scrollIntoView({block:'nearest'})}}
+function chooseArea(a){openPick(false);if(a&&a!==area){area=a;fillAreas();renderAll(true)}$('pickBtn').focus()}
+$('pickBtn').onclick=()=>openPick($('pickPop').hidden);
+$('pickQ').oninput=()=>{pickAct=pickItems.length?0:-1;renderPick();pickAct=pickItems.length?0:-1;renderPick()};
+$('pickList').onclick=e=>{const li=e.target.closest('.opt');if(li)chooseArea(pickItems[+li.dataset.i])};
+document.querySelectorAll('.segc button').forEach(b=>b.onclick=()=>{pickCountry=b.dataset.c;try{localStorage.setItem('bac-country',pickCountry)}catch(e){}
+  pickAct=-1;renderPick();$('pickQ').focus()});
+$('pickPop').addEventListener('keydown',e=>{
+  if(e.key==='Escape'){e.preventDefault();openPick(false);$('pickBtn').focus();return}
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!pickItems.length)return;pickAct=(pickAct+(e.key==='ArrowDown'?1:-1)+pickItems.length)%pickItems.length;renderPick();$(`po-${pickAct}`)?.scrollIntoView({block:'nearest'})}
+  if(e.key==='Enter'&&e.target===$('pickQ')&&pickAct>=0){e.preventDefault();chooseArea(pickItems[pickAct])}});
+document.addEventListener('pointerdown',e=>{if(!$('pickPop').hidden&&!e.target.closest('#pickPop,#pickBtn'))openPick(false)});
+addEventListener('resize',()=>{if(!$('pickPop').hidden)placePick()});
+$('pickDraw').onclick=()=>{openPick(false);$('draw').click()};
+$('pickCoord').onclick=()=>{openPick(false);openCoord(true)};
 $('theme').onclick=()=>{const t=dark()?'light':'dark';document.documentElement.dataset.theme=t;try{localStorage.setItem('bac-theme',t)}catch(e){};setTiles();renderAll()};
 $('export').onclick=()=>selectTab('data');
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>selectTab(b.dataset.t));
