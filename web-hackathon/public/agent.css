@@ -32,16 +32,37 @@
 .eag-halo { outline: 2px solid var(--eag-ink) !important; outline-offset: 2px; box-shadow: 0 0 0 6px var(--eag-soft) !important;
   transition: outline-color .3s, box-shadow .3s; }
 
-/* Action steps in the Ember chat log */
-.ember-msg.act { align-self: flex-start; display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 999px;
-  font-size: 12px; line-height: 18px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); white-space: nowrap; max-width: 100%; }
-.ember-msg.act span { overflow: hidden; text-overflow: ellipsis; }
-.ember-msg.act i { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--eag-ink); }
-.ember-msg.act.run i { animation: eag-pulse 1s ease-in-out infinite; }
-.ember-msg.act.ok i { background: #2f9e44; }
-.ember-msg.act.fail i { background: var(--warn); }
+/* Page actions of a turn, stacked into one collapsible card in the Ember chat log (assistant.js) */
+.ember-msg.acts { align-self: stretch; position: relative; white-space: normal; font-size: 12px; line-height: 18px; color: var(--text-2);
+  margin-bottom: 6px; }
+.ember-msg.acts.many { margin-bottom: 10px; }
+/* Cards peeking out underneath: the "stack" */
+.ember-msg.acts.multi::before, .ember-msg.acts.many::after { content: ""; position: absolute; left: 7px; right: 7px; bottom: -6px; height: 14px;
+  border: 1px solid var(--border); border-top: 0; border-radius: 0 0 10px 10px; z-index: 0;
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--text) 6%); }
+.ember-msg.acts.many::after { left: 14px; right: 14px; bottom: -11px; opacity: .75; z-index: 0; }
+.ember-msg.acts.multi::before { z-index: 1; }
+.ember-msg.acts.open::before, .ember-msg.acts.open::after { display: none; }
+.acts-head { position: relative; z-index: 2; width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 10px; text-align: left;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); color: inherit; font: inherit; cursor: pointer; }
+.ember-msg.acts.open .acts-head { border-radius: 10px 10px 0 0; }
+.acts-head:hover { color: var(--text); }
+.acts-head:focus-visible { outline: 2px solid var(--focus, var(--eag-ink)); outline-offset: 1px; }
+.acts-head span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acts-head small { flex: none; color: var(--text-3); font-size: 11px; }
+.ember-msg.acts.fail .acts-head small { color: var(--warn); }
+.acts-head .chev { width: 14px; height: 14px; flex: none; transition: transform .2s; }
+.ember-msg.acts.open .acts-head .chev { transform: rotate(180deg); }
+.acts-list { list-style: none; margin: 0; padding: 4px 10px 6px; border: 1px solid var(--border); border-top: 0; border-radius: 0 0 10px 10px;
+  background: var(--surface); }
+.acts-list li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.acts-list li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ember-msg.acts i { width: 8px; height: 8px; border-radius: 50%; flex: none; background: #2f9e44; }
+.ember-msg.acts.run .acts-head i, .acts-list li.run i { background: var(--eag-ink); animation: eag-pulse 1s ease-in-out infinite; }
+.ember-msg.acts.fail .acts-head i, .acts-list li.fail i { background: var(--warn); }
 
 @media (prefers-reduced-motion: reduce) {
-  .eag-on .eag-frame, .eag-dot, .ember-msg.act.run i { animation: none; }
+  .eag-on .eag-frame, .eag-dot, .ember-msg.acts i { animation: none !important; }
+  .acts-head .chev { transition: none; }
   .eag-cursor svg, .eag-bar, .eag-frame { transition: none; }
 }

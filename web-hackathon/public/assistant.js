@@ -71,18 +71,52 @@
   window.addEventListener("a11:context", () => { if (!panel.hidden) renderContext(); });
 
   // ---- Messages ----
+  // All the page actions of one user turn render as a single collapsible stack (at the first action's place),
+  // so a long run of steps does not flood the conversation.
+  const openStacks = new Set();
+  function actionStack(key, acts) {
+    const el = document.createElement("div");
+    const running = acts.find((a) => a.state === "run");
+    const failed = acts.filter((a) => a.state === "fail").length;
+    const open = openStacks.has(key);
+    el.className = `ember-msg acts${acts.length > 1 ? " multi" : ""}${acts.length > 2 ? " many" : ""}${open ? " open" : ""}${running ? " run" : failed ? " fail" : ""}`;
+    const title = running
+      ? `${esc(running.text)}…`
+      : acts.length === 1 ? esc(acts[0].text) : `Used the page · ${acts.length} steps`;
+    const meta = !running && failed ? `<small>${failed} failed</small>` : running && acts.length > 1 ? `<small>${acts.indexOf(running) + 1}/${acts.length}</small>` : "";
+    el.innerHTML =
+      `<button type="button" class="acts-head" aria-expanded="${open}"><i></i><span>${title}</span>${meta}` +
+      `<svg class="i chev" aria-hidden="true"><use href="#i-down"/></svg></button>` +
+      `<ol class="acts-list"${open ? "" : " hidden"}>${acts
+        .map((a) => `<li class="${a.state || "ok"}"${a.error ? ` title="${esc(a.error)}"` : ""}><i></i><span>${esc(a.text)}</span></li>`)
+        .join("")}</ol>`;
+    el.querySelector(".acts-head").onclick = () => {
+      openStacks.has(key) ? openStacks.delete(key) : openStacks.add(key);
+      render();
+    };
+    return el;
+  }
+
   function render() {
     welcome.hidden = history.length > 0;
     log.innerHTML = "";
+    const stacks = new Map(); // index of the turn's first action -> its actions
+    let first = -1;
     history.forEach((m, i) => {
+      if (m.role === "user") first = -1;
+      else if (m.role === "act") {
+        if (first < 0) { first = i; stacks.set(i, []); }
+        stacks.get(first).push(m);
+      }
+    });
+    history.forEach((m, i) => {
+      if (m.role === "act") {
+        if (stacks.has(i)) log.appendChild(actionStack(i, stacks.get(i)));
+        return;
+      }
       const el = document.createElement("div");
       el.className = "ember-msg " + m.role;
       if (m.role === "bot") el.innerHTML = md(m.text);
-      else if (m.role === "act") {
-        el.classList.add(m.state || "ok");
-        el.innerHTML = `<i></i><span>${esc(m.text)}</span>`;
-        if (m.error) el.title = m.error;
-      }
       else if (m.role === "err") {
         el.innerHTML = `<span>${esc(m.text)}</span><button type="button">Try again</button>`;
         el.querySelector("button").onclick = () => { const q = m.retry; history.splice(i, 1); ask(q, true); };
