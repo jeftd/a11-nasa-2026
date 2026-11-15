@@ -469,3 +469,20 @@ END $$;
 GRANT CONNECT ON DATABASE firms TO a11_web;
 GRANT USAGE ON SCHEMA public TO a11_web;
 GRANT SELECT ON hotspots, areas, monthly_grid, data_freshness, pipeline_runs, pipeline_status TO a11_web;
+
+-- Analyst role for a collaborator working on our data. Created without login; enable it once with your own password:
+--   ALTER ROLE a11_analyst LOGIN PASSWORD '<password>';
+-- Reads everything in public (current and future tables), owns the "analyst" schema for its own tables and
+-- functions, and cannot modify the pipeline objects. Limits keep heavy queries from starving the daily load.
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'a11_analyst') THEN CREATE ROLE a11_analyst NOLOGIN; END IF;
+END $$;
+ALTER ROLE a11_analyst CONNECTION LIMIT 5;
+ALTER ROLE a11_analyst SET statement_timeout = '10min';
+ALTER ROLE a11_analyst SET idle_in_transaction_session_timeout = '15min';
+GRANT CONNECT, TEMPORARY ON DATABASE firms TO a11_analyst;
+GRANT USAGE ON SCHEMA public TO a11_analyst;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO a11_analyst;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO a11_analyst;
+CREATE SCHEMA IF NOT EXISTS analyst AUTHORIZATION a11_analyst;
