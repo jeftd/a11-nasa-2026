@@ -10,6 +10,8 @@
 //     POST /api/hotspots                  -> the individual detections in an area and date range (CSV or JSON)
 //   Without DATABASE_URL (or if the database fails) the GETs serve the fake files in
 //   public/data/harmonized/, which say "synthetic": true.
+// - Proxies the 72 h fire forecast API (FireCast) so the browser never calls plain HTTP:
+//     GET  /api/forecast/<forecast|forecast/point|forecast/summary|model>?...  -> FORECAST_API_URL
 // - GET /health for Easypanel health checks.
 // Upstream failures return 200 + { error } because the Easypanel proxy
 // replaces 5xx responses with its own HTML error page.
@@ -28,6 +30,10 @@ const FAKE_DIR = path.join(PUBLIC_DIR, "data", "harmonized");
 const MAX_MESSAGE_CHARS = 2000;
 const DATABASE_URL = process.env.DATABASE_URL || "";
 const CACHE_MS = 10 * 60_000; // data changes once a day; areas take ~1 s to compute
+// 72 h forecast API (see FORECAST.md). Plain HTTP is fine here: only this server talks to it.
+const FORECAST_API_URL = (process.env.FORECAST_API_URL || "http://31.170.165.34:8080/api/v1/").replace(/\/?$/, "/");
+const FORECAST_PATHS = new Set(["forecast", "forecast/point", "forecast/summary", "model"]);
+const FORECAST_PARAMS = new Set(["date", "min_prob", "bbox", "limit", "format", "lat", "lon", "top"]);
 
 // Postgres pool, only when DATABASE_URL is set (read-only role a11_web, see analysis/db/schema.sql).
 let pool = null;
@@ -350,6 +356,29 @@ async function handleHotspots(req, res) {
   }
 }
 
+// ---- 72 h forecast (proxy to FireCast) ----
+// Only known paths and query params are forwarded; responses are cached like the harmonized data.
+async function handleForecast(req, res, sub) {
+  if (!FORECAST_PATHS.has(sub)) return sendJson(res, 404, { error: "Unknown forecast endpoint." });
+  const inUrl = new URL(req.url, "http://x");
+  const qs = new URLSearchParams();
+  for (const [k, v] of inUrl.searchParams) if (FORECAST_PARAMS.has(k) && v.length <= 80) qs.set(k, v);
+  const target = FORECAST_API_URL + sub + (qs.toString() ? `?${qs}` : "");
+  const key = `forecast:${sub}?${qs}`;
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.t < CACHE_MS) return sendJson(res, 200, hit.body);
+  try {
+    const upstream = await fetch(target, { signal: AbortSignal.timeout(90_000) });
+    const body = await upstream.json();
+    if (!upstream.ok) return sendJson(res, 200, { error: body.detail || `Forecast API error ${upstream.status}.` });
+    cache.set(key, { t: Date.now(), body });
+    return sendJson(res, 200, body);
+  } catch (err) {
+    console.error("forecast request failed", err.message);
+    return sendJson(res, 200, { error: "The forecast service is unavailable right now." });
+  }
+}
+
 function serveStatic(req, res) {
   const urlPath = decodeURIComponent(new URL(req.url, "http://x").pathname);
   const filePath = path.normalize(path.join(PUBLIC_DIR, urlPath === "/" ? "index.html" : urlPath));
@@ -393,6 +422,10 @@ const server = http.createServer((req, res) => {
   if (urlPath === "/api/harmonized/index" || urlPath.startsWith("/api/harmonized/areas/")) {
     if (req.method !== "GET") return sendJson(res, 405, { error: "Use GET." });
     return handleHarmonizedGet(res, urlPath.slice("/api/harmonized/".length));
+  }
+  if (urlPath.startsWith("/api/forecast/")) {
+    if (req.method !== "GET") return sendJson(res, 405, { error: "Use GET." });
+    return handleForecast(req, res, urlPath.slice("/api/forecast/".length));
   }
   if (req.url === "/api/chat") {
     if (req.method !== "POST") return sendJson(res, 405, { error: "Use POST." });
