@@ -118,17 +118,17 @@ CALL_LOADER = {
     "options": {"waitForSubWorkflow": True},
 }
 
-# --- 3. Historical backfill (Mexico) ------------------------------------------------------------
+# --- 3. Historical backfill (one workflow per country) ------------------------------------------
 BACKFILL_JS = r"""
-// Mexico country yearly files (Standard Processing) + FIRMS Area API for the current year.
-const COUNTRY = 'Mexico';
-const BBOX = '-118.5,14.5,-86.7,32.8';
+// __COUNTRY__ country yearly files (Standard Processing) + FIRMS Area API for the current year.
+const COUNTRY = '__COUNTRY__';
+const BBOXES = __BBOXES__;
 const DO_COUNTRY_FILES = true;
 const DO_CURRENT_YEAR_API = true;
 
 const items = [];
 const base = 'https://firms.modaps.eosdis.nasa.gov/data/country';
-const products = [['modis', 2000, 2025], ['viirs-snpp', 2012, 2025], ['viirs-jpss1', 2018, 2025]];
+const products = __PRODUCTS__;
 if (DO_COUNTRY_FILES) {
   for (const [p, y0, y1] of products) {
     for (let y = y0; y <= y1; y++) {
@@ -140,52 +140,75 @@ if (DO_COUNTRY_FILES) {
 
 if (DO_CURRENT_YEAR_API) {
   const api = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';
-  const sources = ['MODIS_SP', 'MODIS_NRT', 'VIIRS_NOAA20_SP', 'VIIRS_NOAA20_NRT',
-                   'VIIRS_NOAA21_SP', 'VIIRS_NOAA21_NRT', 'VIIRS_SNPP_SP', 'VIIRS_SNPP_NRT'];
+  const sources = __SOURCES__;
   const today = new Date();
-  for (let d = new Date(Date.UTC(today.getUTCFullYear(), 0, 1)); d <= today; d.setUTCDate(d.getUTCDate() + 5)) {
-    const day = d.toISOString().slice(0, 10);
-    for (const s of sources) {
-      const path = `${s}/${BBOX}/5/${day}`;
-      items.push({ url: `${api}/{KEY}/${path}`, source: `api:${path}`,
-                   processing: s.endsWith('_SP') ? 'SP' : 'NRT', country: `${COUNTRY} (bbox)`,
-                   run_id: runId });
+  for (const BBOX of BBOXES) {
+    for (let d = new Date(Date.UTC(today.getUTCFullYear(), 0, 1)); d <= today; d.setUTCDate(d.getUTCDate() + 5)) {
+      const day = d.toISOString().slice(0, 10);
+      for (const s of sources) {
+        const path = `${s}/${BBOX}/5/${day}`;
+        items.push({ url: `${api}/{KEY}/${path}`, source: `api:${path}`,
+                     processing: s.endsWith('_SP') ? 'SP' : 'NRT', country: `${COUNTRY} (bbox)`,
+                     run_id: runId });
+      }
     }
   }
 }
 return items.map(json => ({ json }));
 """
 
-backfill = {
-    "name": "A11 Historical backfill (Mexico)",
-    "nodes": [
-        node("Run once", "n8n-nodes-base.manualTrigger", 1, [0, 0], {}),
-        start_run("historical_backfill", [220, 0]),
-        node("List files", "n8n-nodes-base.code", 2, [440, 0], {"jsCode": RUN_ID_JS + BACKFILL_JS.strip()}),
-        node("Load each", "n8n-nodes-base.executeWorkflow", 1.2, [660, 0], CALL_LOADER),
-        pg_query("Refresh grid", [880, 0], "SELECT * FROM refresh_after_load();", executeOnce=True),
-        finish_run("List files", [1100, 0]),
-    ],
-    "connections": link("Run once", "Start run", "List files", "Load each", "Refresh grid", "Finish run"),
-    "settings": {"executionOrder": "v1", "errorWorkflow": "o8c3nl6MRhfGfRqL"},
-}
+
+def backfill_wf(title, pipeline, country, bboxes, products, sources):
+    js = (BACKFILL_JS.replace("__COUNTRY__", country).replace("__BBOXES__", json.dumps(bboxes))
+          .replace("__PRODUCTS__", json.dumps(products)).replace("__SOURCES__", json.dumps(sources)))
+    return {
+        "name": title,
+        "nodes": [
+            node("Run once", "n8n-nodes-base.manualTrigger", 1, [0, 0], {}),
+            start_run(pipeline, [220, 0]),
+            node("List files", "n8n-nodes-base.code", 2, [440, 0], {"jsCode": RUN_ID_JS + js.strip()}),
+            node("Load each", "n8n-nodes-base.executeWorkflow", 1.2, [660, 0], CALL_LOADER),
+            pg_query("Refresh grid", [880, 0], "SELECT * FROM refresh_after_load();", executeOnce=True),
+            finish_run("List files", [1100, 0]),
+        ],
+        "connections": link("Run once", "Start run", "List files", "Load each", "Refresh grid", "Finish run"),
+        "settings": {"executionOrder": "v1", "errorWorkflow": "o8c3nl6MRhfGfRqL"},
+    }
+
+
+MX_BBOX = "-118.5,14.5,-86.7,32.8"
+# Contiguous US + Alaska. S-NPP is left out for the US: the harmonized series uses MODIS and NOAA-20 only,
+# and skipping it halves the volume (US files are ~2x Mexico's).
+US_BBOXES = ["-125,24.4,-66.9,49.5", "-170,51,-129.9,71.5"]
+
+backfill = backfill_wf("A11 Historical backfill (Mexico)", "historical_backfill", "Mexico", [MX_BBOX],
+                       [["modis", 2000, 2025], ["viirs-snpp", 2012, 2025], ["viirs-jpss1", 2018, 2025]],
+                       ["MODIS_SP", "MODIS_NRT", "VIIRS_NOAA20_SP", "VIIRS_NOAA20_NRT",
+                        "VIIRS_NOAA21_SP", "VIIRS_NOAA21_NRT", "VIIRS_SNPP_SP", "VIIRS_SNPP_NRT"])
+backfill_us = backfill_wf("A11 Historical backfill (United States)", "historical_backfill_us", "United_States",
+                          US_BBOXES, [["modis", 2000, 2025], ["viirs-jpss1", 2018, 2025]],
+                          ["MODIS_SP", "MODIS_NRT", "VIIRS_NOAA20_SP", "VIIRS_NOAA20_NRT",
+                           "VIIRS_NOAA21_SP", "VIIRS_NOAA21_NRT"])
 
 # --- 4. Daily NRT -------------------------------------------------------------------------------
 DAILY_JS = r"""
-// Last 2 days of Near Real-Time hotspots over Mexico. Duplicates are ignored by the database.
-const BBOX = '-118.5,14.5,-86.7,32.8';
+// Last 2 days of Near Real-Time hotspots over Mexico and the United States. Duplicates are ignored by the database.
+const REGIONS = [['Mexico (bbox)', '-118.5,14.5,-86.7,32.8'],
+                 ['United_States (bbox)', '-125,24.4,-66.9,49.5'],
+                 ['United_States (bbox)', '-170,51,-129.9,71.5']];
 const api = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';
-return ['MODIS_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT'].map(s => ({ json: {
+const day = new Date().toISOString().slice(0, 10);
+return REGIONS.flatMap(([country, BBOX]) => ['MODIS_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT'].map(s => ({ json: {
   url: `${api}/{KEY}/${s}/${BBOX}/2`,
-  source: `api:${s}/${BBOX}/2@${new Date().toISOString().slice(0, 10)}`,
+  source: `api:${s}/${BBOX}/2@${day}`,
   processing: 'NRT',
-  country: 'Mexico (bbox)',
+  country,
   run_id: runId,
-}}));
+}})));
 """
 
 daily = {
-    "name": "A11 Daily NRT (Mexico)",
+    "name": "A11 Daily NRT (Mexico + US)",
     "nodes": [
         node("Every day 06:00", "n8n-nodes-base.scheduleTrigger", 1.2, [0, 0],
              {"rule": {"interval": [{"triggerAtHour": 6}]}}),
@@ -252,6 +275,7 @@ errors = {
 OUT.mkdir(exist_ok=True)
 for fname, wf in [("01-db-setup.json", setup), ("02-load-firms-csv.json", loader),
                   ("03-historical-backfill.json", backfill), ("04-daily-nrt.json", daily),
+                  ("07-historical-backfill-us.json", backfill_us),
                   ("05-db-status.json", status), ("06-pipeline-error-handler.json", errors)]:
     (OUT / fname).write_text(json.dumps(wf, indent=2), encoding="utf-8")
     print("wrote", fname)

@@ -1,5 +1,5 @@
 {
-  "name": "A11 Daily NRT (Mexico)",
+  "name": "A11 Daily NRT (Mexico + US)",
   "nodes": [
     {
       "parameters": {
@@ -42,7 +42,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const runId = $('Start run').first().json.run_id;\n// Last 2 days of Near Real-Time hotspots over Mexico. Duplicates are ignored by the database.\nconst BBOX = '-118.5,14.5,-86.7,32.8';\nconst api = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';\nreturn ['MODIS_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT'].map(s => ({ json: {\n  url: `${api}/{KEY}/${s}/${BBOX}/2`,\n  source: `api:${s}/${BBOX}/2@${new Date().toISOString().slice(0, 10)}`,\n  processing: 'NRT',\n  country: 'Mexico (bbox)',\n  run_id: runId,\n}}));"
+        "jsCode": "const runId = $('Start run').first().json.run_id;\n// Last 2 days of Near Real-Time hotspots over Mexico and the United States. Duplicates are ignored by the database.\nconst REGIONS = [['Mexico (bbox)', '-118.5,14.5,-86.7,32.8'],\n                 ['United_States (bbox)', '-125,24.4,-66.9,49.5'],\n                 ['United_States (bbox)', '-170,51,-129.9,71.5']];\nconst api = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';\nconst day = new Date().toISOString().slice(0, 10);\nreturn REGIONS.flatMap(([country, BBOX]) => ['MODIS_NRT', 'VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT'].map(s => ({ json: {\n  url: `${api}/{KEY}/${s}/${BBOX}/2`,\n  source: `api:${s}/${BBOX}/2@${day}`,\n  processing: 'NRT',\n  country,\n  run_id: runId,\n}})));"
       },
       "name": "List sources",
       "type": "n8n-nodes-base.code",

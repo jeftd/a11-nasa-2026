@@ -350,6 +350,20 @@ INSERT INTO areas (id, name, kind, sort_order, geom) VALUES
         'POLYGON((-92.30 17.35,-91.30 17.20,-90.95 16.45,-91.95 16.55,-92.30 17.35))', 4326)))
 ON CONFLICT (id) DO NOTHING;
 
+-- United States: five contrasting fire regimes (rough outlines, like the Mexican ones).
+INSERT INTO areas (id, name, kind, sort_order, geom) VALUES
+    ('butte', 'Butte County, California', 'county · US · wildfire (Camp Fire 2018)', 11, ST_Multi(ST_GeomFromText(
+        'POLYGON((-122.07 39.80,-121.95 40.15,-121.35 40.10,-121.08 39.85,-121.30 39.45,-121.60 39.29,-121.90 39.45,-122.07 39.80))', 4326))),
+    ('flagstaff', 'Flagstaff & Coconino forests, Arizona', 'drawn area · US · forest fires', 12, ST_Multi(ST_GeomFromText(
+        'POLYGON((-112.20 35.60,-111.00 35.60,-110.90 34.70,-111.60 34.55,-112.20 34.80,-112.20 35.60))', 4326))),
+    ('flinthills', 'Flint Hills, Kansas', 'drawn area · US · spring rangeland burning', 13, ST_Multi(ST_GeomFromText(
+        'POLYGON((-96.95 39.60,-96.35 39.60,-96.05 38.60,-96.10 37.60,-96.20 37.00,-96.75 37.00,-96.85 37.80,-97.00 38.70,-96.95 39.60))', 4326))),
+    ('ardelta', 'Arkansas Delta', 'drawn area · US · crop-residue burning', 14, ST_Multi(ST_GeomFromText(
+        'POLYGON((-91.60 35.90,-90.40 36.00,-90.10 35.10,-90.70 34.30,-91.20 33.90,-91.60 34.50,-91.60 35.90))', 4326))),
+    ('everglades', 'Everglades & Big Cypress, Florida', 'drawn area · US · wetland and prescribed fire', 15, ST_Multi(ST_GeomFromText(
+        'POLYGON((-81.50 26.35,-80.55 26.35,-80.45 25.65,-80.70 25.20,-81.15 25.10,-81.65 25.80,-81.50 26.35))', 4326)))
+ON CONFLICT (id) DO NOTHING;
+
 -- Vegetation-fire detections per month and satellite inside a polygon (uses the hotspots_geom_idx index).
 CREATE OR REPLACE FUNCTION polygon_monthly_raw(p_geom geometry)
 RETURNS TABLE (month date, satellite text, hotspots bigint) LANGUAGE sql STABLE AS $$
