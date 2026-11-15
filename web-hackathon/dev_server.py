@@ -54,6 +54,14 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path == "/api/harmonized/polygon":
             return self.send(200, upstream("POST", self.path, body))
         req = json.loads(body or b"{}")
+        # Real endpoints first once they are deployed; the mocks below are the fallback.
+        if self.path == "/api/harmonized/raw" or (self.path == "/api/hotspots" and req.get("format") == "json"):
+            try:
+                out = upstream("POST", self.path, body)
+                if b'"error"' not in out[:200]:
+                    return self.send(200, out)
+            except Exception:  # noqa: BLE001
+                pass
         if self.path == "/api/harmonized/raw":
             return self.send(200, json.dumps({"months": self.mock_raw(req)}).encode())
         if self.path == "/api/hotspots":

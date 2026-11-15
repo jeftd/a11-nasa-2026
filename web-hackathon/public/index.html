@@ -304,7 +304,7 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
           <h4>Detected vs reported fires</h4>
           <p class="muted" style="margin:0" id="repLine"></p>
           <div class="reprows" id="repRows"></div>
-          <div class="foot">Reported: CONAFOR wildfire records (forest land, by start date), datos.gob.mx, CC BY 4.0. Agricultural burns are rarely reported, so satellites usually see many more hotspots than reported fires.</div>
+          <div class="foot" id="repFoot"></div>
         </div>
       </section>
 
@@ -896,41 +896,66 @@ ${row('Hotspots (VIIRS-equivalent)',`${s.tot.toLocaleString()}${s.era?` (estimat
 ${row('Typical for these months',`${s.typ.toLocaleString()}${s.typ>=10?` · ${s.tot>=s.typ?'+':''}${Math.round(100*(s.tot-s.typ)/s.typ)}%`:''}`)}
 ${row('Months above / below normal',`${s.above} / ${s.below} of ${s.n}`)}
 ${row('Busiest month',s.best?`${FULL[s.best.m]} ${s.best.y} · ${s.best.v.toLocaleString()} hotspots`:'—')}
-${rep?row('Reported fires (CONAFOR)',`${rep.n.toLocaleString()} fires · ${Math.round(rep.ha).toLocaleString()} ha · ${esc(rep.note)}`):''}
+${rep?row(`Reported fires (${rep.label})`,`${rep.n.toLocaleString()} fires · ${Math.round(rep.ha).toLocaleString()} ha · ${esc(rep.note)}`):''}
 </table>
 <h2>Month in focus</h2><table>${row(`${FULL[sel.m]} ${sel.y}${isPartial(sel.y,sel.m)?` (1–${NOW_D})`:''}`,`${v.toLocaleString()} hotspots · ${CATS[c.k].l} · typical ${Math.round(c.med).toLocaleString()} · percentile ${c.p.toFixed(0)}`)}</table>
 <h2>Burning calendar</h2><div class="two"><img src="${cal}" alt="Burning activity calendar">${ch?`<img src="${ch}" alt="Season profile and yearly hotspots">`:''}</div>
 <h2>Harmonization check</h2><p>${V&&V.ok?esc(V.sentence):'Not available for this area.'}</p>
 <h2>Method and sources</h2><p>${esc(H.meta.method||'')}. Hotspots are satellite detections of active fires (vegetation fires only), not confirmed fires; they include agricultural burns. "Normal" is the middle third of the same month in ${Y0}–${Y1}.</p>
-<p>Data: NASA FIRMS (MODIS Collection 6.1 Terra/Aqua, VIIRS 375 m NOAA-20). We acknowledge the use of data from NASA's Fire Information for Resource Management System (FIRMS), part of NASA's LANCE and ESDIS.${rep?' Reported fires: CONAFOR, Incendios forestales, datos.gob.mx (CC BY 4.0).':''}</p>
+<p>Data: NASA FIRMS (MODIS Collection 6.1 Terra/Aqua, VIIRS 375 m NOAA-20). We acknowledge the use of data from NASA's Fire Information for Resource Management System (FIRMS), part of NASA's LANCE and ESDIS.${rep?' '+rep.cite:''}</p>
 <p class="sub">Generated ${new Date().toISOString().slice(0,16).replace('T',' ')} UTC by the A11 Burning Activity Calendar (NASA Space Apps 2026).</p></body></html>`);w.document.close();dlMsg('The summary opened in a new tab.')};
 
-/* ================= reported fires (CONAFOR, Mexico) ================= */
+/* ================= reported fires (CONAFOR in Mexico, NIFC in the US) ================= */
 // Columnar file built by analysis/build_reported_fires.py: t = months since first_year-01, lat/lon x1000, ha x10.
 let REP=null;
 const repReady=fetch('/data/reported/conafor-mx.json').then(r=>r.ok?r.json():null).then(j=>{REP=j;return j}).catch(()=>null);
-// Per-month [fires, ha] of the area, keyed by timeline index; cached on the area. null when the area has no reported data.
+// Which reporting system covers an area: its centroid against a coarse US–Mexico border (good enough to pick a source).
+function countryOf(lat,lon){
+  if(lon>-97.15)return lat<25.95&&lon<-86.5?'mx':lat>=24.4?'us':null;
+  const B=[[-117.12,32.53],[-114.72,32.72],[-111.07,31.33],[-108.21,31.33],[-108.21,31.78],[-106.53,31.78],[-104.5,29.76],[-103,29],[-101.4,29.77],[-100.5,28.7],[-99.5,27.5],[-99.1,26.4],[-97.15,25.95]];
+  if(lon<-117.12)return lat>32.53?'us':lat>=22.8?'mx':null;
+  for(let i=0;i<B.length-1;i++){const [x0,y0]=B[i],[x1,y1]=B[i+1];if(lon>=x0&&lon<=x1){const yb=y0+(y1-y0)*(lon-x0)/(x1-x0);return lat>yb?'us':lat>=14.5?'mx':null}}
+  return null}
+const REP_SRC={
+  mx:{label:'CONAFOR',foot:'Reported: CONAFOR wildfire records (forest land, by start date), datos.gob.mx, CC BY 4.0.',cite:'Reported fires: CONAFOR, Incendios forestales, datos.gob.mx (CC BY 4.0).'},
+  us:{label:'NIFC',foot:'Reported: NIFC WFIGS wildfire incidents (IRWIN, by discovery date). It misses many state and local fires and has no prescribed burns.',cite:'Reported fires: NIFC Wildland Fire Incident Locations (WFIGS, IRWIN).'}};
+// Per-month [fires, ha] of the area keyed by timeline index, cached on the area (null = no reported data for it).
+// Mexico comes from the static CONAFOR file; US areas query NIFC's public WFIGS service once, in the background.
 function repOf(a){
-  if(!REP)return null;if(a.rep!==undefined)return a.rep;
-  const la=a.poly.map(p=>p[0]),lo2=a.poly.map(p=>p[1]),n0=Math.min(...la),n1=Math.max(...la),e0=Math.min(...lo2),e1=Math.max(...lo2);
-  // Only for areas inside Mexico's CONAFOR coverage; elsewhere "0 reported" would be misleading.
-  if(n1<14||n0>33.5||e1<-118.5||e0>-86){a.rep=null;return null}
-  const by=new Map(),off=idx(REP.first_year,0);
-  for(let i=0;i<REP.t.length;i++){const y=REP.lat[i]/1000,x=REP.lon[i]/1000;if(y<n0||y>n1||x<e0||x>e1||!inside([y,x],a.poly))continue;
-    const k=off+REP.t[i],c=by.get(k)||[0,0];c[0]++;c[1]+=REP.ha[i]/10;by.set(k,c)}
-  return a.rep={by,i0:Math.max(0,off),i1:Math.min(TOTAL-1,off+REP.t.reduce((m,v)=>v>m?v:m,0))}}
-// Reported fires in timeline months a..b, limited to the years CONAFOR covers.
+  if(a.rep!==undefined)return a.rep;
+  const la=a.poly.map(p=>p[0]),lo2=a.poly.map(p=>p[1]),bb=[Math.min(...la),Math.max(...la),Math.min(...lo2),Math.max(...lo2)];
+  const src=countryOf(la.reduce((s,v)=>s+v,0)/la.length,lo2.reduce((s,v)=>s+v,0)/lo2.length);
+  if(src==='mx'){if(!REP)return null;
+    const by=new Map(),off=idx(REP.first_year,0);
+    for(let i=0;i<REP.t.length;i++){const y=REP.lat[i]/1000,x=REP.lon[i]/1000;if(y<bb[0]||y>bb[1]||x<bb[2]||x>bb[3]||!inside([y,x],a.poly))continue;
+      const k=off+REP.t[i],c=by.get(k)||[0,0];c[0]++;c[1]+=REP.ha[i]/10;by.set(k,c)}
+    return a.rep={by,src:'mx',i0:Math.max(0,off),i1:Math.min(TOTAL-1,off+REP.t.reduce((m,v)=>v>m?v:m,0))}}
+  if(src==='us'){if(!a.repLoading)a.repLoading=wfigs(a,bb).then(r=>{a.rep=r;if(area===a){renderReported();renderRangeSum()}})
+      .catch(err=>{console.warn('NIFC reported fires unavailable:',err.message);a.rep=null});return null}
+  return a.rep=null}
+async function wfigs(a,[s,n,w,e]){
+  const base='https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations/FeatureServer/0/query',by=new Map(),Y=2015;
+  for(let off=0,page=0;page<25;page++,off+=2000){
+    const q=new URLSearchParams({where:`IncidentTypeCategory='WF' AND FireDiscoveryDateTime >= TIMESTAMP '${Y}-01-01 00:00:00'`,
+      geometry:`${w},${s},${e},${n}`,geometryType:'esriGeometryEnvelope',inSR:'4326',spatialRel:'esriSpatialRelIntersects',
+      outFields:'FireDiscoveryDateTime,IncidentSize',outSR:'4326',returnGeometry:'true',orderByFields:'OBJECTID',resultOffset:off,resultRecordCount:2000,f:'json'});
+    const j=await (await fetch(`${base}?${q}`)).json();if(j.error)throw new Error(j.error.message||'WFIGS error');
+    for(const f of j.features||[]){const g=f.geometry,t=f.attributes.FireDiscoveryDateTime;if(!g||!t||!inside([g.y,g.x],a.poly))continue;
+      const d=new Date(t),k=idx(d.getUTCFullYear(),d.getUTCMonth());if(k<0||k>=TOTAL)continue;const c=by.get(k)||[0,0];c[0]++;c[1]+=(f.attributes.IncidentSize||0)*0.404686;by.set(k,c)}
+    if(!j.exceededTransferLimit)break}
+  return{by,src:'us',i0:idx(Y,0),i1:TOTAL-1}}
+// Reported fires in timeline months a..b, limited to the years the source covers.
 function reportedIn(a,b){const r=repOf(area);if(!r)return null;const lo3=Math.max(a,r.i0),hi3=Math.min(b,r.i1);if(lo3>hi3)return null;
   let n=0,ha=0;for(let i=lo3;i<=hi3;i++){const c=r.by.get(i);if(c){n+=c[0];ha+=c[1]}}
-  const part=lo3>a||hi3<b;return{n,ha,note:`CONAFOR records${part?`, counted for ${ymOf(lo3).y}–${ymOf(hi3).y} only (the years it covers)`:''}`}}
+  const part=lo3>a||hi3<b,S=REP_SRC[r.src];return{n,ha,label:S.label,cite:S.cite,note:`${S.label} records${part?`, counted for ${ymOf(lo3).y}–${ymOf(hi3).y} only (the years it covers)`:''}`}}
 function renderReported(){
-  const r=repOf(area),sect=$('repSect');if(!r){sect.hidden=true;return}sect.hidden=false;
+  const r=repOf(area),sect=$('repSect');if(!r){sect.hidden=true;return}sect.hidden=false;$('repFoot').textContent=REP_SRC[r.src].foot+' Agricultural burns are rarely reported, so satellites usually see many more hotspots than reported fires.';
   const rows=[];for(let y=ymOf(r.i0).y;y<=ymOf(r.i1).y;y++){let n=0,ha=0,hs=0;for(let m=0;m<12;m++){const c=r.by.get(idx(y,m));if(c){n+=c[0];ha+=c[1]}hs+=val(area,y,m)??0}rows.push({y,n,ha,hs})}
   const tn=rows.reduce((s,o)=>s+o.n,0),tha=rows.reduce((s,o)=>s+o.ha,0),ths=rows.reduce((s,o)=>s+o.hs,0),mn=Math.max(1,...rows.map(o=>o.n)),mh=Math.max(1,...rows.map(o=>o.hs));
   const c=r.by.get(idx(sel.y,sel.m)),inCov=idx(sel.y,sel.m)>=r.i0&&idx(sel.y,sel.m)<=r.i1;
-  $('repLine').innerHTML=tn?`${rows[0].y}–${rows.at(-1).y}: <b style="color:var(--text)">${tn.toLocaleString()}</b> reported fires (${Math.round(tha).toLocaleString()} ha) and ${ths.toLocaleString()} hotspots, about ${Math.round(ths/tn).toLocaleString()} hotspots per reported fire.`+
+  $('repLine').innerHTML=tn?`${rows[0].y}–${rows.at(-1).y}: <b style="color:var(--text)">${tn.toLocaleString()}</b> reported fires (${Math.round(tha).toLocaleString()} ha) and ${ths.toLocaleString()} hotspots${ths?`, about ${Math.round(ths/tn).toLocaleString()} hotspots per reported fire`:``}.`+
     (inCov?` ${FULL[sel.m]} ${sel.y}: ${c?`${c[0]} reported (${Math.round(c[1]).toLocaleString()} ha)`:'none reported'}.`:'')
-    :`No CONAFOR-reported fires inside this area in ${rows[0].y}–${rows.at(-1).y}. Its hotspots are likely agricultural or other non-forest burning.`;
+    :`No ${REP_SRC[r.src].label}-reported fires inside this area in ${rows[0].y}–${rows.at(-1).y}. Its hotspots are likely agricultural or other non-forest burning.`;
   $('repRows').innerHTML='<span class="h">Year</span><span class="h">Hotspots</span><span class="h">Reported fires</span>'+rows.map(o=>`<span class="${o.y===sel.y?'sel':''}">${o.y}</span>
     <span class="b" data-tip="${o.y}: ${o.hs.toLocaleString()} hotspots"><i style="width:${100*o.hs/mh}%;background:var(--surface-3)"></i><span>${o.hs.toLocaleString()}</span></span>
     <span class="b" data-tip="${o.y}: ${o.n} reported fires · ${Math.round(o.ha).toLocaleString()} ha"><i style="width:${100*o.n/mn}%;background:#F4A261"></i><span>${o.n.toLocaleString()}</span></span>`).join('')}

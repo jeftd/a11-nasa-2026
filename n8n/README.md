@@ -4,7 +4,7 @@ Loads NASA FIRMS hotspots into the `a11-db` Postgres + PostGIS database (Easypan
 service `a11-db`, database `firms`, internal host `learn_a11-db:5432`).
 
 ```
-FIRMS country CSVs (SP, 2000-2025) ─┐
+FIRMS country CSVs (SP, 2000-2025, Mexico + US) ─┐
 FIRMS Area API (SP + NRT, 2026)    ─┼─► n8n "A11 Load FIRMS CSV" ─► staging_csv ─► load_staged() ─► hotspots
 FIRMS Area API (NRT, daily 06:00)  ─┘                                                              │
                                                                      refresh_after_load() ◄────────┘
@@ -23,7 +23,8 @@ workflow can be re-run safely.
 | `workflows/01-db-setup.json` | A11 DB setup (schema) `4lcysse4oNmmKMo7` | manual | Applies `analysis/db/schema.sql` (idempotent) |
 | `workflows/02-load-firms-csv.json` | A11 Load FIRMS CSV `g8PK6cZ7WiIK8N3w` | sub-workflow (published) | Downloads one CSV, stages it, parses it. A failed download is logged as an error row instead of stopping the run. Does not save successful execution data. |
 | `workflows/03-historical-backfill.json` | A11 Historical backfill (Mexico) `pmmStkkyD3JB7v6e` | manual | Mexico country files (MODIS 2000-2025, S-NPP 2012-2025, NOAA-20 2018-2025) + current year from the Area API in 5-day windows (560 sources, ~20 min) |
-| `workflows/04-daily-nrt.json` | A11 Daily NRT (Mexico) `YtVboT3mI1Hb5EmF` | daily 06:00 America/New_York (published) | Last 2 days of MODIS, NOAA-20 and NOAA-21 NRT |
+| `workflows/04-daily-nrt.json` | A11 Daily NRT (Mexico + US) `YtVboT3mI1Hb5EmF` | daily 06:00 America/New_York (published) | Last 2 days of MODIS, NOAA-20 and NOAA-21 NRT over Mexico, the contiguous US and Alaska |
+| `workflows/07-historical-backfill-us.json` | A11 Historical backfill (United States) `FzNv0kAEpipmhwCP` | manual | US country files (MODIS 2000-2025, NOAA-20 2018-2025; no S-NPP, which the harmonization does not use) + current year from the Area API over the contiguous US and Alaska (802 sources) |
 | `workflows/05-db-status.json` | A11 DB status `Xf5atlLgxmhASd7h` | manual | Row counts, `pipeline_status_json()`, recent load errors |
 | `workflows/06-pipeline-error-handler.json` | A11 Pipeline error handler `o8c3nl6MRhfGfRqL` | error workflow (published) | Marks the run as `error` when workflow 03 or 04 crashes |
 
@@ -92,7 +93,7 @@ SELECT * FROM pipeline_runs ORDER BY id DESC LIMIT 10;
 
 ## Caveats
 
-- API rows are clipped to the Mexico bounding box (`country = 'Mexico (bbox)'`), so they include border areas
-  of the US, Guatemala and Belize. Clip with a Mexico polygon before comparing with the country files.
+- API rows are clipped to bounding boxes (`country = 'Mexico (bbox)'` / `'United_States (bbox)'`), so they include
+  border areas of neighbouring countries. Clip with a Mexico polygon before comparing with the country files.
 - NRT rows have no `type` field (`fire_type` is NULL); static sources must be masked using SP rows with
   `fire_type <> 0`.

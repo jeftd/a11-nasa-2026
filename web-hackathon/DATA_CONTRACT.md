@@ -111,14 +111,21 @@ Both take `{ "area": "<id>" }` or `{ "polygon": [[lat, lon], ...] }` (≤ 100,00
 Without the database the dots fall back to random positions (labelled "positions illustrative") and the Method tab
 uses invented raw counts. `dev_server.py` previews the page on Python: it proxies the deployed API and mocks these two.
 
-## Reported fires (Mexico)
+## Reported fires
 
-`public/data/reported/conafor-mx.json` holds every CONAFOR-reported wildfire 2015–2025 with coordinates (columnar:
-`t` months since 2015-01, `lat`/`lon` × 1000, `ha` × 10). The page counts the fires inside the area for the
-"Detected vs reported" section and the Report range. Rebuild it with `analysis/build_reported_fires.py` (source URLs
-in the script). Areas outside Mexico hide the section.
+The source follows the area's centroid (`countryOf()` in `index.html`, a coarse US–Mexico border):
+
+- **Mexico:** `public/data/reported/conafor-mx.json` holds every CONAFOR-reported wildfire 2015–2025 with coordinates
+  (columnar: `t` months since 2015-01, `lat`/`lon` × 1000, `ha` × 10). Rebuild it with
+  `analysis/build_reported_fires.py` (source URLs in the script).
+- **United States:** the browser queries NIFC's public WFIGS Incident Locations service (wildfires `WF` discovered
+  since 2015) by the area's bounding box, then keeps the points inside the outline. WFIGS holds only incidents
+  reported to IRWIN, so it undercounts state and local fires; `IncidentSize` is the whole fire's size.
+
+The page counts the fires inside the area for the "Detected vs reported" section and the Report range. Areas in
+neither country hide the section.
 
 ## Not covered yet
 
-- Area outlines in the `areas` table are rough hand-drawn polygons; load official municipal boundaries.
-- United States: no US hotspots are loaded yet; NIFC WFIGS incident points would be the reported-fires source there.
+- Area outlines in the `areas` table are rough hand-drawn polygons; load official municipal/county boundaries.
+- US hotspots exclude S-NPP (the harmonized series uses MODIS and NOAA-20 only).
