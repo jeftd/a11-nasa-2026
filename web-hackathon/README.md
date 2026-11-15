@@ -9,13 +9,17 @@ Postgres (SQL functions in `analysis/db/schema.sql`). Without a database it serv
 ## Architecture
 
 ```
-Browser ──POST /api/chat──▶ Node server (this folder, Easypanel)
-                              │  adds X-Webhook-Secret
-                              ▼
-                       n8n webhook ──▶ AI Agent (MiniMax model) ──▶ reply
+Browser ──POST /api/chat { message }──▶ Node server (Easypanel) ── chat-agent.js (LangChain + MiniMax)
+   ▲                                          │  memory: Postgres chat_messages (by sessionId)
+   │◀── { reply, actions: [page tool calls] } ┘
+   │  agent.js plays each action with the Ember cursor (real clicks/typing on the page)
+   └──POST /api/chat { toolResults }──▶ the agent resumes, may act again, then { reply }
 ```
 
-The browser never sees the n8n URL, the secret, or the model credentials.
+The browser never sees the model key. Page tools (search an area, set the month, tabs, layers, hotspot filter,
+area around a point, theme, play) are declared in `chat-agent.js` and implemented in `public/agent.js`; tools that
+must run on the server (the RAG search, later) go in `SERVER_TOOLS`. `CHAT_BACKEND=n8n` switches back to the old
+n8n webhook proxy.
 
 ## Files in `public/`
 
@@ -25,6 +29,7 @@ The browser never sees the n8n URL, the secret, or the model credentials.
 | `harmonized.js` | `/` | Loads the series from `/api/harmonized/` (fallback `data/harmonized/`) and converts it for the calendar (the only code that knows the format) |
 | `data/harmonized/` | `/` | Fake series used when there is no database, see `DATA_CONTRACT.md` |
 | `assistant.js`, `assistant.css` | `/` | Ember assistant sidebar (below) |
+| `agent.js`, `agent.css` | `/` | Ember agent cursor: plays the page actions the agent returns (glowing frame, Stop bar, ripples) |
 | `fx.js`, `fx.css` | `/` | Motion layer: ember glow and sparks over the map hotspots, heat line, tab ink, chart and heatmap entrances, dark-mode reveal (all off with reduced motion) |
 | `ember.js` | both | Ember mascot expression engine (gestures, blinking, eye-follow) |
 | `status.html`, `app.js`, `styles.css` | `/status.html` | Original placeholder with server/assistant status and the old floating chat |
@@ -58,7 +63,7 @@ screen (the whole payload is capped at 2,000 characters):
 category "Much above normal"; a typical month like this has about 191. The app currently shows illustrative data.]
 ```
 
-The n8n agent receives this inside `message`; no change to the `/api/chat` contract was needed.
+The agent receives this inside `message`.
 
 ## Run locally
 
@@ -74,9 +79,11 @@ Open http://localhost:3000.
 - Source: GitHub `leonardos4enz/a11-nasa-2026`, branch `main`, build path `/web-hackathon`
 - Build: Dockerfile
 - Port: 3000
-- Environment: `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`, `DATABASE_URL`
-  (`postgres://a11_web:<password>@learn_a11-db:5432/firms`; the read-only role `a11_web` is created by
-  `schema.sql` without login — enable it once with `ALTER ROLE a11_web LOGIN PASSWORD '<password>';`)
+- Environment: `LLM_API_KEY` (MiniMax key), optional `LLM_BASE_URL` / `LLM_MODEL`, `DATABASE_URL`
+  (`postgres://a11_web:<password>@learn_a11-db:5432/firms`; the role `a11_web` is created by `schema.sql` without
+  login — enable it once with `ALTER ROLE a11_web LOGIN PASSWORD '<password>';`). It reads the data and appends to
+  `chat_messages` (the agent memory, `analysis/db/chat_memory.sql`). Old backend: `CHAT_BACKEND=n8n`,
+  `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`. See `.env.example`.
 - **Auto-deploy:** every push to `main` runs `.github/workflows/deploy.yml`, which calls the Easypanel
   deploy webhook stored in the repo secret `EASYPANEL_DEPLOY_WEBHOOK` (Easypanel → service → Deployments →
   Deploy Webhook). Keep Easypanel's own "Auto Deploy" off to avoid double deploys.
@@ -86,13 +93,13 @@ Open http://localhost:3000.
 | Path | Method | Purpose |
 | --- | --- | --- |
 | `/` | GET | Static site (`public/`) |
-| `/api/chat` | POST | `{ message, sessionId }` → `{ reply, sessionId }` |
+| `/api/chat` | POST | `{ message, sessionId }` or `{ toolResults, sessionId }` → `{ reply, actions, sessionId }` |
 | `/api/harmonized/index` | GET | Harmonized data index (areas, data date, baseline) |
 | `/api/harmonized/areas/<id>` | GET | Monthly harmonized series of one area |
 | `/api/harmonized/polygon` | POST | `{ polygon: [[lat, lon], ...] }` → series for a drawn area |
 | `/api/harmonized/raw` | POST | `{ area }` or `{ polygon }` → raw monthly counts per sensor (Method tab) |
 | `/api/hotspots` | POST | `{ area or polygon, from, to, format: "csv" or "json" }` → individual detections (CSV download, map dots) |
-| `/health` | GET | Health check (`chat`, `db` configured) |
+| `/health` | GET | Health check (`chat` backend, `memory` store, `db` configured) |
 
 ## Preview without Node
 
@@ -101,4 +108,5 @@ py web-hackathon/dev_server.py 8771
 ```
 
 Serves `public/`, proxies the existing API to https://emberatlas.ink and **mocks** `/api/hotspots` and
-`/api/harmonized/raw` (invented numbers) until they are deployed.
+`/api/harmonized/raw` (invented numbers) until they are deployed. It also mocks `/api/chat` with scripted page
+actions ("busca Santiago y pon abril 2024", "season tab", "dark mode", "demo") to test the agent cursor without a model.

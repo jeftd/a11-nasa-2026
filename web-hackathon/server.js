@@ -1,7 +1,7 @@
-// Minimal web server for the A11 hackathon site (only dependency: pg, for the harmonized data).
+// Minimal web server for the A11 hackathon site (dependencies: pg for the data, LangChain for the assistant).
 // - Serves static files from ./public
-// - Exposes POST /api/chat, which proxies to a private n8n webhook so the
-//   agent URL and secret never reach the browser.
+// - Exposes POST /api/chat: the Ember agent (chat-agent.js, LangChain) that answers and returns page actions for
+//   the browser to play; or, with CHAT_BACKEND=n8n, a proxy to the private n8n webhook. Keys never reach the browser.
 // - Exposes the harmonized fire series from the a11-db Postgres (see DATA_CONTRACT.md):
 //     GET  /api/harmonized/index         -> index.json
 //     GET  /api/harmonized/areas/<id>     -> areas/<id>.json
@@ -46,6 +46,24 @@ if (DATABASE_URL) {
     console.error("pg module not available, serving fake harmonized data:", err.message);
   }
 }
+
+// Chat backend: "langchain" (chat-agent.js, the default when LLM_API_KEY is set) or "n8n" (the old webhook proxy).
+// Memory goes to CHAT_DATABASE_URL, or to DATABASE_URL when the role there may write chat_messages.
+const chatAgent = require("./chat-agent");
+const CHAT_BACKEND = (process.env.CHAT_BACKEND || (chatAgent.enabled ? "langchain" : "n8n")).toLowerCase();
+const CHAT_DATABASE_URL = process.env.CHAT_DATABASE_URL || "";
+let chatPool = pool;
+if (CHAT_DATABASE_URL && CHAT_DATABASE_URL !== DATABASE_URL) {
+  try {
+    const { Pool } = require("pg");
+    chatPool = new Pool({ connectionString: CHAT_DATABASE_URL, max: 3, statement_timeout: 10_000, idleTimeoutMillis: 30_000 });
+    chatPool.on("error", (err) => console.error("chat pg pool error", err.message));
+  } catch (err) {
+    console.error("pg module not available for chat memory:", err.message);
+  }
+}
+const agent = CHAT_BACKEND === "langchain" ? chatAgent.createAgent({ pool: chatPool }) : null;
+if (agent) console.log(`chat: LangChain agent, model ${chatAgent.model}`);
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -98,20 +116,40 @@ function extractReply(data) {
   return data.output ?? data.reply ?? data.text ?? data.message ?? JSON.stringify(data);
 }
 
-async function handleChat(req, res) {
-  if (rateLimited(clientIp(req))) return sendJson(res, 429, { error: "Too many requests, slow down." });
-  if (!N8N_WEBHOOK_URL) return sendJson(res, 200, { error: "Chat backend is not configured." });
+// The page-acting LangChain agent (chat-agent.js) when an LLM key is set and CHAT_BACKEND is not "n8n".
+async function handleAgentChat(res, payload, sessionId, message) {
+  let input = { message };
+  if (!message) {
+    if (!Array.isArray(payload.toolResults) || !payload.toolResults.length) return sendJson(res, 400, { error: "Message is required." });
+    input = {
+      toolResults: payload.toolResults.slice(0, 12).map((r) => ({ id: String((r && r.id) || "").slice(0, 120), result: r && r.result })),
+    };
+  }
+  try {
+    const out = await agent.run(sessionId, input);
+    return sendJson(res, 200, { reply: out.reply, actions: out.actions, sessionId });
+  } catch (err) {
+    console.error("agent error", err.status || "", err.message);
+    return sendJson(res, 200, { error: "The assistant is unavailable right now." });
+  }
+}
 
+async function handleChat(req, res) {
   let payload;
   try {
-    payload = JSON.parse(await readBody(req));
+    payload = JSON.parse(await readBody(req, 65_536));
   } catch {
     return sendJson(res, 400, { error: "Invalid JSON body." });
   }
-
   const message = String(payload.message || "").trim().slice(0, MAX_MESSAGE_CHARS);
-  if (!message) return sendJson(res, 400, { error: "Message is required." });
+  // New messages share the default budget; the follow-up requests that carry page-action results get their own.
+  if (rateLimited(clientIp(req), message ? "default" : "chat-tools", message ? 20 : 60))
+    return sendJson(res, 429, { error: "Too many requests, slow down." });
   const sessionId = /^[\w-]{8,64}$/.test(payload.sessionId || "") ? payload.sessionId : crypto.randomUUID();
+
+  if (CHAT_BACKEND === "langchain") return handleAgentChat(res, payload, sessionId, message);
+  if (!N8N_WEBHOOK_URL) return sendJson(res, 200, { error: "Chat backend is not configured." });
+  if (!message) return sendJson(res, 400, { error: "Message is required." });
 
   try {
     const upstream = await fetch(N8N_WEBHOOK_URL, {
@@ -424,7 +462,13 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer((req, res) => {
-  if (req.url === "/health") return sendJson(res, 200, { ok: true, chat: Boolean(N8N_WEBHOOK_URL), db: Boolean(pool) });
+  if (req.url === "/health")
+    return sendJson(res, 200, {
+      ok: true,
+      chat: agent ? "langchain" : N8N_WEBHOOK_URL ? "n8n" : false,
+      memory: agent ? agent.memory : null,
+      db: Boolean(pool),
+    });
   const urlPath = new URL(req.url, "http://x").pathname;
   if (urlPath === "/api/harmonized/raw" || urlPath === "/api/hotspots") {
     if (req.method !== "POST") return sendJson(res, 405, { error: "Use POST." });

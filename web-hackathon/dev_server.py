@@ -66,7 +66,52 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send(200, json.dumps({"months": self.mock_raw(req)}).encode())
         if self.path == "/api/hotspots":
             return self.mock_hotspots(req)
+        if self.path == "/api/chat":
+            return self.send(200, json.dumps(self.mock_chat(req)).encode())
         self.send(404, b'{"error":"not found"}')
+
+    # MOCK of the Ember agent (the real one is chat-agent.js): turns "busca X", "pon <month> <year>", "dark mode",
+    # "season tab" or "demo" into page actions so the agent cursor (public/agent.js) can be tested without a model.
+    MONTHS = {m: i + 1 for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"])}
+    MONTHS.update({"ene": 1, "abr": 4, "ago": 8, "dic": 12})
+
+    def mock_chat(self, req):
+        import re
+        if req.get("toolResults"):
+            res = [r.get("result") or {} for r in req["toolResults"]]
+            view = next((r["view"] for r in reversed(res) if isinstance(r, dict) and r.get("view")), None)
+            errs = [r.get("error") for r in res if isinstance(r, dict) and r.get("ok") is False]
+            if errs:
+                return {"reply": "(mock) I could not do it: " + "; ".join(errs)}
+            if view:
+                return {"reply": f"(mock) Done. **{view['area']} · {view['period']}**: {view['count']} hotspots, "
+                                 f"*{view['category']}* (typical {view['typical']})."}
+            return {"reply": "(mock) Done."}
+        q = str(req.get("message", "")).split("\n\n[App context")[0].strip()
+        low = q.lower()
+        actions = []
+        m = re.search(r"(?:busca|search|find|show|go to)\s+(.+?)(?:\s+(?:y|and)\s+|$)", q, re.I)
+        if m:
+            actions.append(("select_area", {"query": m.group(1).strip(" .")}))
+        m = re.search(r"\b(ene\w*|jan\w*|feb\w*|mar\w*|abr\w*|apr\w*|may\w*|jun\w*|jul\w*|ago\w*|aug\w*|sep\w*|oct\w*|nov\w*|dic\w*|dec\w*)\s+(?:de\s+|del\s+)?(\d{4})", low)
+        if m:
+            actions.append(("set_month", {"year": int(m.group(2)), "month": self.MONTHS[m.group(1)[:3]]}))
+        for word, tab in (("season", "season"), ("tempor", "season"), ("method", "method"), ("report", "data"), ("burn", "burn")):
+            if word in low:
+                actions.append(("open_tab", {"tab": tab}))
+                break
+        if "dark" in low or "oscuro" in low:
+            actions.append(("set_theme", {"theme": "dark"}))
+        if "light" in low or "claro" in low:
+            actions.append(("set_theme", {"theme": "light"}))
+        if "forecast" in low or "pronóstico" in low:
+            actions.append(("set_layer", {"layer": "forecast", "visible": True}))
+        if "demo" in low:
+            actions = [("select_area", {"query": "Santiago"}), ("set_month", {"year": 2024, "month": 4}),
+                       ("set_hotspot_filter", {"fire_types": ["vegetation", "industrial"]}), ("open_tab", {"tab": "season"})]
+        if not actions:
+            return {"reply": "(mock) Try: “busca Santiago y pon abril 2024”, “season tab”, “dark mode” or “demo”."}
+        return {"reply": "", "actions": [{"id": f"mock_{i}", "name": n, "args": a} for i, (n, a) in enumerate(actions)]}
 
     # ---- mocks (invented numbers) ----
     def area_json(self, req):

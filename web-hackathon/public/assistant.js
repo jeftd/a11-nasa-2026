@@ -1,7 +1,7 @@
 // Ember assistant sidebar for the Burning Activity Calendar.
 // Pattern from erp-ai spec 047: a right panel opened from the top bar, pushes content on desktop, drawer on narrow
 // screens (Esc / backdrop close), remembers if it was open, shows what the user is viewing, welcome + suggestions.
-// Talks only to our own server (/api/chat), which proxies to n8n.
+// Talks only to our own server (/api/chat): the Ember agent may answer with page actions, which agent.js plays.
 (() => {
   const $ = (id) => document.getElementById(id);
   const app = document.querySelector(".app");
@@ -78,6 +78,11 @@
       const el = document.createElement("div");
       el.className = "ember-msg " + m.role;
       if (m.role === "bot") el.innerHTML = md(m.text);
+      else if (m.role === "act") {
+        el.classList.add(m.state || "ok");
+        el.innerHTML = `<i></i><span>${esc(m.text)}</span>`;
+        if (m.error) el.title = m.error;
+      }
       else if (m.role === "err") {
         el.innerHTML = `<span>${esc(m.text)}</span><button type="button">Try again</button>`;
         el.querySelector("button").onclick = () => { const q = m.retry; history.splice(i, 1); ask(q, true); };
@@ -101,27 +106,62 @@
     save(); render();
     mood("thinking");
     const slow = setTimeout(() => mood("working"), 2500);
+    const agentUI = window.EmberAgent;
+    let hidPanel = false, halted = 0;
     try {
-      const r = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: (q + contextSuffix()).slice(0, 2000), sessionId }),
-      });
-      const data = await r.json();
-      if (!r.ok || data.error) {
-        history.push({ role: "err", text: data.error || "Something went wrong.", retry: q });
-        mood("failed", 3000);
-      } else {
-        history.push({ role: "bot", text: data.reply || "(empty reply)" });
-        if (/\b(thanks|thank you|gracias)\b/i.test(q)) mood("thankful", 3000);
-        else if (/\b(fire|fires|hotspots?|season|incendios?)\b/i.test(q)) mood("found", 2600);
-        else mood("done", 1600);
+      // The agent may answer with page actions; play them with the Ember cursor, send the results back, repeat.
+      let req = { message: (q + contextSuffix()).slice(0, 2000), sessionId };
+      for (let step = 0; step < 8; step++) {
+        const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req) });
+        const data = await r.json();
+        if (!r.ok || data.error) {
+          history.push({ role: "err", text: data.error || "Something went wrong.", retry: q });
+          mood("failed", 3000);
+          break;
+        }
+        const actions = Array.isArray(data.actions) ? data.actions : [];
+        if (data.reply) history.push({ role: "bot", text: data.reply });
+        if (!actions.length || !agentUI) {
+          if (!data.reply) history.push({ role: "bot", text: "(empty reply)" });
+          if (/\b(thanks|thank you|gracias)\b/i.test(q)) mood("thankful", 3000);
+          else if (/\b(fire|fires|hotspots?|season|incendios?)\b/i.test(q)) mood("found", 2600);
+          else mood("done", 1600);
+          break;
+        }
+        // After the user pressed Stop, answer further actions with "stopped" instead of playing them.
+        if (halted) {
+          if (halted++ > 1) break;
+          req = { sessionId, toolResults: actions.map((a) => ({ id: a.id, result: { ok: false, error: "Stopped by the user." } })) };
+          continue;
+        }
+        // On narrow screens the panel is a drawer over the map: get it out of the way while Ember works.
+        if (narrow() && !panel.hidden) { setOpen(false, false); hidPanel = true; }
+        agentUI.begin();
+        mood("working");
+        stateEl.textContent = "Using the page…";
+        const results = [];
+        for (const a of actions) {
+          const item = { role: "act", text: agentUI.label(a), state: "run" };
+          history.push(item); render();
+          let result = await agentUI.run(a);
+          item.state = result && result.ok === false ? "fail" : "ok";
+          if (result && result.error) item.error = result.error;
+          const json = JSON.stringify(result ?? null);
+          if (json.length > 3500) result = { ok: result.ok, truncated: json.slice(0, 3500) };
+          results.push({ id: a.id, result });
+          save(); render();
+        }
+        if (agentUI.stopped) { halted = 1; agentUI.end(); }
+        req = { sessionId, toolResults: results };
+        mood("thinking");
       }
     } catch {
       history.push({ role: "err", text: "Network error. Check your connection.", retry: q });
       mood("sad", 3000);
     } finally {
       clearTimeout(slow);
+      if (agentUI) agentUI.end();
+      if (hidPanel) setOpen(true, false);
       busy = false; save(); render(); updateSend();
       if (!narrow()) input.focus();
     }
