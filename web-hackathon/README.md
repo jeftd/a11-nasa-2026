@@ -90,4 +90,15 @@ Open http://localhost:3000.
 | `/api/harmonized/index` | GET | Harmonized data index (areas, data date, baseline) |
 | `/api/harmonized/areas/<id>` | GET | Monthly harmonized series of one area |
 | `/api/harmonized/polygon` | POST | `{ polygon: [[lat, lon], ...] }` → series for a drawn area |
+| `/api/harmonized/raw` | POST | `{ area }` or `{ polygon }` → raw monthly counts per sensor (Method tab) |
+| `/api/hotspots` | POST | `{ area or polygon, from, to, format: "csv" or "json" }` → individual detections (CSV download, map dots) |
 | `/health` | GET | Health check (`chat`, `db` configured) |
+
+## Preview without Node
+
+```bash
+py web-hackathon/dev_server.py 8771
+```
+
+Serves `public/`, proxies the existing API to https://emberatlas.ink and **mocks** `/api/hotspots` and
+`/api/harmonized/raw` (invented numbers) until they are deployed.

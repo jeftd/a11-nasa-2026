@@ -95,7 +95,30 @@ py analysis/make_fake_harmonized.py --through 2026-11-14
 `{ "area_km2": 812, "months": [...] }` computed by `harmonized_drawn_json()`. Without the database the page
 falls back to an illustrative estimate (the first area scaled by size) and labels it "illustrative".
 
+## Detections and raw counts (read straight from `hotspots`, no schema change)
+
+Both take `{ "area": "<id>" }` or `{ "polygon": [[lat, lon], ...] }` (≤ 100,000 km²) and need the database.
+
+- `POST /api/hotspots` with `from` / `to` (`YYYY-MM-DD`) and `format`:
+  - `"json"` → `{ total, points: [[lat, lon, frp, conf_class, satellite], ...] }`, the 3,000 strongest. The map uses it
+    for the real dots of the selected month: NOAA-20 for VIIRS months, Terra + Aqua for MODIS-era months.
+  - `"csv"` → every vegetation-fire detection, all satellites (or `satellites: [...]`), up to 200,000 rows; headers
+    `X-Rows`, `X-Truncated`. This is the Report tab's "Hotspots in this area and range" download.
+- `POST /api/harmonized/raw` → `{ months: [{ month, modis, noaa20, snpp, noaa21 }] }`, counts before harmonization. The
+  Method tab cross-validates the MODIS→VIIRS ratio with it (leave-one-year-out over the overlap years). That check
+  re-implements the provisional method in the page; if `harmonize_polygon()` changes, update `validate()` in `index.html`.
+
+Without the database the dots fall back to random positions (labelled "positions illustrative") and the Method tab
+uses invented raw counts. `dev_server.py` previews the page on Python: it proxies the deployed API and mocks these two.
+
+## Reported fires (Mexico)
+
+`public/data/reported/conafor-mx.json` holds every CONAFOR-reported wildfire 2015–2025 with coordinates (columnar:
+`t` months since 2015-01, `lat`/`lon` × 1000, `ha` × 10). The page counts the fires inside the area for the
+"Detected vs reported" section and the Report range. Rebuild it with `analysis/build_reported_fires.py` (source URLs
+in the script). Areas outside Mexico hide the section.
+
 ## Not covered yet
 
-- The map dots are scattered randomly inside the polygon: the count is real, the positions are not.
 - Area outlines in the `areas` table are rough hand-drawn polygons; load official municipal boundaries.
+- United States: no US hotspots are loaded yet; NIFC WFIGS incident points would be the reported-fires source there.

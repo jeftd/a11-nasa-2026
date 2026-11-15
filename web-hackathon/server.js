@@ -6,6 +6,8 @@
 //     GET  /api/harmonized/index         -> index.json
 //     GET  /api/harmonized/areas/<id>     -> areas/<id>.json
 //     POST /api/harmonized/polygon        -> { months } for a polygon drawn in the page
+//     POST /api/harmonized/raw            -> raw monthly counts per sensor (validation of the harmonization)
+//     POST /api/hotspots                  -> the individual detections in an area and date range (CSV or JSON)
 //   Without DATABASE_URL (or if the database fails) the GETs serve the fake files in
 //   public/data/harmonized/, which say "synthetic": true.
 // - GET /health for Easypanel health checks.
@@ -16,6 +18,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const zlib = require("zlib");
 
 const PORT = Number(process.env.PORT || 3000);
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || "";
@@ -48,15 +51,17 @@ const MIME = {
   ".ico": "image/x-icon",
 };
 
-// Very small in-memory rate limiter: 20 requests / minute / IP.
+// Very small in-memory rate limiter: `max` requests / minute / IP, per bucket.
 const hits = new Map();
-function rateLimited(ip) {
+function rateLimited(ip, bucket = "default", max = 20) {
   const now = Date.now();
-  const recent = (hits.get(ip) || []).filter((t) => now - t < 60_000);
+  const key = `${bucket}:${ip}`;
+  const recent = (hits.get(key) || []).filter((t) => now - t < 60_000);
   recent.push(now);
-  hits.set(ip, recent);
-  return recent.length > 20;
+  hits.set(key, recent);
+  return recent.length > max;
 }
+const clientIp = (req) => (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
 
 function sendJson(res, status, body) {
   res.writeHead(status, { "Content-Type": MIME[".json"], "Cache-Control": "no-store" });
@@ -88,8 +93,7 @@ function extractReply(data) {
 }
 
 async function handleChat(req, res) {
-  const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
-  if (rateLimited(ip)) return sendJson(res, 429, { error: "Too many requests, slow down." });
+  if (rateLimited(clientIp(req))) return sendJson(res, 429, { error: "Too many requests, slow down." });
   if (!N8N_WEBHOOK_URL) return sendJson(res, 200, { error: "Chat backend is not configured." });
 
   let payload;
@@ -181,8 +185,7 @@ async function handleHarmonizedGet(res, key) {
 
 // POST { polygon: [[lat, lon], ...] } -> { area_km2, months } computed in the database.
 async function handleHarmonizedPolygon(req, res) {
-  const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
-  if (rateLimited(ip)) return sendJson(res, 429, { error: "Too many requests, slow down." });
+  if (rateLimited(clientIp(req))) return sendJson(res, 429, { error: "Too many requests, slow down." });
   if (!pool) return sendJson(res, 200, { error: "Database not configured." });
   let pts;
   try {
@@ -205,6 +208,148 @@ async function handleHarmonizedPolygon(req, res) {
   }
 }
 
+// ---- Area geometry shared by the endpoints below ----
+// { area: "<id>" } uses the areas table; { polygon: [[lat, lon], ...] } a shape drawn in the page.
+// Returns { sql, param, key }: `sql` is an expression that yields the geometry from $1. Or { error }.
+function areaGeometry(body) {
+  if (typeof body.area === "string") {
+    if (!/^[a-z0-9_-]{1,40}$/.test(body.area)) return { error: "Unknown area." };
+    return { sql: "(SELECT geom FROM areas WHERE id = $1)", param: body.area, key: `area:${body.area}` };
+  }
+  const pts = body.polygon;
+  const ok = Array.isArray(pts) && pts.length >= 3 && pts.length <= 200 &&
+    pts.every((p) => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]) &&
+      Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180);
+  if (!ok) return { error: "Send an area id or a polygon of 3-200 [lat, lon] pairs." };
+  const ring = pts.map(([lat, lon]) => [lon, lat]);
+  ring.push(ring[0]);
+  const geojson = JSON.stringify({ type: "Polygon", coordinates: [ring] });
+  return { sql: "ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON($1), 4326))", param: geojson, key: `poly:${geojson}` };
+}
+
+async function readJsonBody(req, res) {
+  try {
+    const body = JSON.parse(await readBody(req));
+    if (body && typeof body === "object") return body;
+  } catch {}
+  sendJson(res, 400, { error: "Invalid JSON body." });
+  return null;
+}
+
+// The area must exist and be under 100,000 km² (same limit as drawn areas). Returns an error message or null.
+async function checkArea(geo) {
+  const { rows } = await pool.query(`SELECT ST_Area(g::geography) / 1e6 AS km2 FROM (SELECT ${geo.sql} AS g) x`, [geo.param]);
+  if (!rows[0] || rows[0].km2 == null) return "Unknown area.";
+  if (rows[0].km2 > 100000) return `Area too large: ${Math.round(rows[0].km2).toLocaleString("en-US")} km2 (max 100,000).`;
+  return null;
+}
+
+// POST { area | polygon } -> { months: [{ month, modis, noaa20, snpp, noaa21 }] }: raw vegetation-fire detections per
+// month and satellite family, before any harmonization. The page uses it to show and cross-validate the adjustment.
+async function handleHarmonizedRaw(req, res) {
+  if (rateLimited(clientIp(req))) return sendJson(res, 429, { error: "Too many requests, slow down." });
+  if (!pool) return sendJson(res, 200, { error: "Database not configured." });
+  const body = await readJsonBody(req, res);
+  if (!body) return;
+  const geo = areaGeometry(body);
+  if (geo.error) return sendJson(res, 400, { error: geo.error });
+  const hit = cache.get(`raw:${geo.key}`);
+  if (hit && Date.now() - hit.t < CACHE_MS) return sendJson(res, 200, hit.body);
+  try {
+    const bad = await checkArea(geo);
+    if (bad) return sendJson(res, 200, { error: bad });
+    const { rows } = await pool.query(
+      `SELECT to_char(r.month, 'YYYY-MM') AS month,
+              coalesce(sum(r.hotspots) FILTER (WHERE r.satellite IN ('Terra', 'Aqua')), 0)::int AS modis,
+              coalesce(sum(r.hotspots) FILTER (WHERE r.satellite = 'NOAA20'), 0)::int AS noaa20,
+              coalesce(sum(r.hotspots) FILTER (WHERE r.satellite = 'SNPP'), 0)::int AS snpp,
+              coalesce(sum(r.hotspots) FILTER (WHERE r.satellite = 'NOAA21'), 0)::int AS noaa21
+       FROM polygon_monthly_raw(${geo.sql}) r GROUP BY r.month ORDER BY r.month`, [geo.param]);
+    const out = { months: rows };
+    cache.set(`raw:${geo.key}`, { t: Date.now(), body: out });
+    return sendJson(res, 200, out);
+  } catch (err) {
+    console.error("raw query failed", err.message);
+    return sendJson(res, 200, { error: "Could not compute this area." });
+  }
+}
+
+// POST { area | polygon, from: "YYYY-MM-DD", to: "YYYY-MM-DD", format: "csv" | "json", satellites?: [...] }
+//   csv  -> every vegetation-fire detection in the area and dates (all satellites unless `satellites` is given),
+//           up to HOTSPOT_CSV_MAX rows; headers X-Rows / X-Truncated.
+//   json -> { total, points: [[lat, lon, frp, conf_class, satellite], ...] }, the HOTSPOT_JSON_MAX strongest, for the map.
+const HOTSPOT_CSV_MAX = 200_000;
+const HOTSPOT_JSON_MAX = 3_000;
+const SATELLITES = ["Terra", "Aqua", "SNPP", "NOAA20", "NOAA21"];
+const CSV_COLUMNS = ["acq_date", "acq_time", "latitude", "longitude", "sensor", "satellite", "confidence", "conf_class",
+  "frp", "brightness", "bright_2", "scan", "track", "daynight", "fire_type", "processing", "version"];
+
+function csvCell(v) {
+  if (v == null) return "";
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  const s = String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+async function handleHotspots(req, res) {
+  const body = await readJsonBody(req, res);
+  if (!body) return;
+  const asJson = body.format === "json";
+  if (rateLimited(clientIp(req), asJson ? "dots" : "csv", asJson ? 120 : 10)) {
+    return sendJson(res, 429, { error: "Too many requests, slow down." });
+  }
+  if (!pool) return sendJson(res, 200, { error: "Database not configured." });
+  const geo = areaGeometry(body);
+  if (geo.error) return sendJson(res, 400, { error: geo.error });
+  const dateOk = (d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));
+  if (!dateOk(body.from) || !dateOk(body.to) || body.from > body.to) {
+    return sendJson(res, 400, { error: "from and to must be YYYY-MM-DD dates, from <= to." });
+  }
+  const sats = Array.isArray(body.satellites) ? body.satellites.filter((s) => SATELLITES.includes(s)) : SATELLITES;
+  if (!sats.length) return sendJson(res, 400, { error: "No valid satellites." });
+
+  const cacheKey = asJson ? `dots:${geo.key}:${body.from}:${body.to}:${sats.join()}` : null;
+  const hit = cacheKey && cache.get(cacheKey);
+  if (hit && Date.now() - hit.t < CACHE_MS) return sendJson(res, 200, hit.body);
+
+  try {
+    const bad = await checkArea(geo);
+    if (bad) return sendJson(res, 200, { error: bad });
+    const where = `ST_Intersects(h.geom, (SELECT ${geo.sql})) AND h.acq_date BETWEEN $2::date AND $3::date
+                   AND coalesce(h.fire_type, 0) = 0 AND h.satellite = ANY($4::text[])`;
+    const params = [geo.param, body.from, body.to, sats];
+    if (asJson) {
+      const { rows } = await pool.query(
+        `SELECT count(*) OVER () AS total, h.latitude, h.longitude, h.frp, h.conf_class, h.satellite
+         FROM hotspots h WHERE ${where} ORDER BY h.frp DESC NULLS LAST LIMIT ${HOTSPOT_JSON_MAX}`, params);
+      const out = {
+        total: rows.length ? Number(rows[0].total) : 0,
+        points: rows.map((r) => [r.latitude, r.longitude, r.frp, r.conf_class, r.satellite]),
+      };
+      if (cache.size > 500) cache.clear();
+      cache.set(cacheKey, { t: Date.now(), body: out });
+      return sendJson(res, 200, out);
+    }
+    const { rows } = await pool.query(
+      `SELECT ${CSV_COLUMNS.map((c) => (c === "acq_date" ? "to_char(h.acq_date, 'YYYY-MM-DD') AS acq_date" : "h." + c)).join(", ")}
+       FROM hotspots h WHERE ${where} ORDER BY h.acq_date, h.acq_time LIMIT ${HOTSPOT_CSV_MAX + 1}`, params);
+    const truncated = rows.length > HOTSPOT_CSV_MAX;
+    if (truncated) rows.length = HOTSPOT_CSV_MAX;
+    const lines = [CSV_COLUMNS.join(",")];
+    for (const r of rows) lines.push(CSV_COLUMNS.map((c) => csvCell(r[c])).join(","));
+    res.writeHead(200, {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Rows": String(rows.length),
+      "X-Truncated": truncated ? "1" : "0",
+    });
+    return res.end(lines.join("\n") + "\n");
+  } catch (err) {
+    console.error("hotspots query failed", err.message);
+    return sendJson(res, 200, { error: "Could not read the hotspots for this area." });
+  }
+}
+
 function serveStatic(req, res) {
   const urlPath = decodeURIComponent(new URL(req.url, "http://x").pathname);
   const filePath = path.normalize(path.join(PUBLIC_DIR, urlPath === "/" ? "index.html" : urlPath));
@@ -217,7 +362,19 @@ function serveStatic(req, res) {
       res.writeHead(404, { "Content-Type": "text/plain" });
       return res.end("Not found");
     }
-    res.writeHead(200, { "Content-Type": MIME[path.extname(filePath)] || "application/octet-stream" });
+    const type = MIME[path.extname(filePath)] || "application/octet-stream";
+    // Text files are gzipped when the browser accepts it (the reported-fires JSON is 1.6 MB raw, ~0.5 MB gzipped).
+    if (/^(text|application\/json)/.test(type) && data.length > 1024 && /\bgzip\b/.test(req.headers["accept-encoding"] || "")) {
+      return zlib.gzip(data, (zerr, gz) => {
+        if (zerr) {
+          res.writeHead(200, { "Content-Type": type });
+          return res.end(data);
+        }
+        res.writeHead(200, { "Content-Type": type, "Content-Encoding": "gzip", Vary: "Accept-Encoding" });
+        res.end(gz);
+      });
+    }
+    res.writeHead(200, { "Content-Type": type });
     res.end(data);
   });
 }
@@ -225,6 +382,10 @@ function serveStatic(req, res) {
 const server = http.createServer((req, res) => {
   if (req.url === "/health") return sendJson(res, 200, { ok: true, chat: Boolean(N8N_WEBHOOK_URL), db: Boolean(pool) });
   const urlPath = new URL(req.url, "http://x").pathname;
+  if (urlPath === "/api/harmonized/raw" || urlPath === "/api/hotspots") {
+    if (req.method !== "POST") return sendJson(res, 405, { error: "Use POST." });
+    return urlPath === "/api/hotspots" ? handleHotspots(req, res) : handleHarmonizedRaw(req, res);
+  }
   if (urlPath === "/api/harmonized/polygon") {
     if (req.method !== "POST") return sendJson(res, 405, { error: "Use POST." });
     return handleHarmonizedPolygon(req, res);

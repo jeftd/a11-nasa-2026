@@ -1,0 +1,97 @@
+"""Local preview of the calendar without Node (for this PC, which has only Python).
+
+- Serves web-hackathon/public.
+- Proxies GET /api/harmonized/index, /api/harmonized/areas/<id> and POST /api/harmonized/polygon to the deployed
+  site (real data), so the page shows what production shows.
+- MOCKS POST /api/harmonized/raw and POST /api/hotspots with invented numbers, only to exercise the page before
+  those endpoints are deployed. The real implementations are in server.js.
+
+    py web-hackathon/dev_server.py [port] [upstream]      (default 8771, https://emberatlas.ink)
+"""
+import json
+import os
+import random
+import sys
+import urllib.request
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+PORT = int(os.environ.get("PORT") or (sys.argv[1] if len(sys.argv) > 1 else 8771))
+UPSTREAM = sys.argv[2] if len(sys.argv) > 2 else "https://emberatlas.ink"
+PUBLIC = Path(__file__).resolve().parent / "public"
+
+
+def upstream(method, path, body=None):
+    req = urllib.request.Request(UPSTREAM + path, data=body, method=method,
+                                 headers={"Content-Type": "application/json", "User-Agent": "a11-dev-preview"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.read()
+
+
+class Handler(SimpleHTTPRequestHandler):
+    def __init__(self, *a, **k):
+        super().__init__(*a, directory=str(PUBLIC), **k)
+
+    def send(self, code, body, ctype="application/json; charset=utf-8", extra=None):
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Cache-Control", "no-store")
+        for k, v in (extra or {}).items():
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        if self.path.startswith("/api/harmonized/"):
+            try:
+                return self.send(200, upstream("GET", self.path))
+            except Exception as e:  # noqa: BLE001
+                return self.send(200, json.dumps({"error": str(e)}).encode())
+        return super().do_GET()
+
+    def do_POST(self):
+        body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        if self.path == "/api/harmonized/polygon":
+            return self.send(200, upstream("POST", self.path, body))
+        req = json.loads(body or b"{}")
+        if self.path == "/api/harmonized/raw":
+            return self.send(200, json.dumps({"months": self.mock_raw(req)}).encode())
+        if self.path == "/api/hotspots":
+            return self.mock_hotspots(req)
+        self.send(404, b'{"error":"not found"}')
+
+    # ---- mocks (invented numbers) ----
+    def area_json(self, req):
+        if "area" in req:
+            return json.loads(upstream("GET", f"/api/harmonized/areas/{req['area']}"))
+        return {"polygon": req["polygon"], "months": json.loads(upstream("POST", "/api/harmonized/polygon",
+                                                                           json.dumps({"polygon": req["polygon"]}).encode()))["months"]}
+
+    def mock_raw(self, req):
+        rnd = random.Random(7)
+        out = []
+        for m in self.area_json(req)["months"]:
+            viirs = m["source"] == "VIIRS"
+            modis = round(m["count"] / (4.2 * rnd.uniform(0.8, 1.25)))
+            out.append({"month": m["month"], "modis": modis, "noaa20": m["count"] if viirs else 0, "snpp": 0, "noaa21": 0})
+        return out
+
+    def mock_hotspots(self, req):
+        poly = req.get("polygon") or self.area_json(req)["polygon"]
+        la = [p[0] for p in poly]
+        lo = [p[1] for p in poly]
+        rnd = random.Random(req.get("from"))
+        pts = [[round(rnd.uniform(min(la), max(la)), 4), round(rnd.uniform(min(lo), max(lo)), 4),
+                round(rnd.expovariate(1 / 12), 1), rnd.choice("lnh"), (req.get("satellites") or ["NOAA20"])[0]]
+               for _ in range(rnd.randint(5, 60))]
+        if req.get("format") == "json":
+            return self.send(200, json.dumps({"total": len(pts), "points": pts}).encode())
+        lines = ["acq_date,acq_time,latitude,longitude,sensor,satellite,confidence,conf_class,frp"]
+        lines += [f"{req['from']},1830,{p[0]},{p[1]},VIIRS,{p[4]},{p[3]},{p[3]},{p[2]}" for p in pts]
+        self.send(200, ("\n".join(lines) + "\n").encode(), "text/csv; charset=utf-8",
+                  {"X-Rows": str(len(pts)), "X-Truncated": "0"})
+
+
+if __name__ == "__main__":
+    print(f"Preview on http://localhost:{PORT} (API proxied to {UPSTREAM}; raw/hotspots MOCKED)", flush=True)
+    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()

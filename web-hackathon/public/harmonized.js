@@ -90,5 +90,37 @@
     return a;
   }
 
-  window.A11Harmonized = { load, drawn };
+  // ---- Detections and raw sensor counts (need the API; they throw on a plain static server) ----
+  // `spec` is { area: "<id>" } for an area of the picker or { polygon: [[lat, lon], ...] } for a drawn one.
+  async function post(url, body) {
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
+  }
+
+  // Raw monthly counts per satellite family, before harmonization: [{ month, modis, noaa20, snpp, noaa21 }].
+  async function raw(spec) {
+    const body = await (await post(SOURCES[0] + "raw", spec)).json();
+    if (body.error) throw new Error(body.error);
+    return body.months;
+  }
+
+  // Strongest detections for the map: { total, points: [[lat, lon, frp, conf_class, satellite], ...] }.
+  async function points(spec, from, to, satellites) {
+    const body = await (await post("/api/hotspots", { ...spec, from, to, satellites, format: "json" })).json();
+    if (body.error) throw new Error(body.error);
+    return body;
+  }
+
+  // Every detection in the area and dates as CSV: { blob, rows, truncated }.
+  async function csv(spec, from, to) {
+    const res = await post("/api/hotspots", { ...spec, from, to, format: "csv" });
+    if (!/text\/csv/.test(res.headers.get("Content-Type") || "")) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || "The server did not return a CSV file.");
+    }
+    return { blob: await res.blob(), rows: Number(res.headers.get("X-Rows") || 0), truncated: res.headers.get("X-Truncated") === "1" };
+  }
+
+  window.A11Harmonized = { load, drawn, raw, points, csv };
 })();

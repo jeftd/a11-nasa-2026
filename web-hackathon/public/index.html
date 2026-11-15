@@ -172,6 +172,43 @@ details summary{cursor:pointer;color:var(--text);font-weight:500}
 code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
 .notes p{margin:0 0 10px;color:var(--text-2)}
 
+/* ---------- report tab ---------- */
+.rangepick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.rangepick label,.cgrid label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-3);min-width:0}
+.rangepick input,.cgrid input{height:36px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);padding:0 10px;font:inherit;min-width:0;width:100%;color-scheme:light dark}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chips button{height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:12px;font-weight:500;color:var(--text-2)}
+.chips button:hover{background:var(--surface-2)}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:14px 12px;margin-top:12px}
+.kv .k{font-size:22px;line-height:28px;font-weight:600}
+.kv .l{font-size:12px;color:var(--text-3)}
+.kv .s{font-size:12px;color:var(--text-2)}
+.dlmsg{font-size:12px;color:var(--text-2);margin-top:8px;min-height:16px}
+.dl .btn[disabled]{opacity:.55;cursor:not-allowed}
+.stripes .rband{position:absolute;top:-4px;height:32px;border:2px solid var(--text-2);border-radius:5px;pointer-events:none;background:color-mix(in srgb,var(--text) 6%,transparent)}
+/* ---------- method tab ---------- */
+.mchart svg{display:block;width:100%;height:150px}
+.mchart svg text{fill:var(--text-3);font-size:11px}
+.lg2{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--text-2);margin-top:6px}
+.lg2 i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.lg2 i.bar{height:10px;width:10px;border-radius:2px}
+.mtab{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;font-variant-numeric:tabular-nums}
+.mtab th,.mtab td{text-align:right;padding:5px 6px;border-bottom:1px solid var(--border)}
+.mtab th:first-child,.mtab td:first-child{text-align:left}
+.mtab th{color:var(--text-3);font-weight:500}
+.reprows{display:grid;grid-template-columns:auto 1fr 1fr;gap:3px 10px;margin-top:10px;font-size:12px;align-items:center}
+.reprows .h{color:var(--text-3);font-weight:500}
+.reprows .b{position:relative;height:14px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.reprows .b i{position:absolute;inset:0 auto 0 0;border-radius:3px}
+.reprows .b span{position:relative;padding-left:5px;line-height:14px;font-size:11px;color:var(--text)}
+.reprows .sel{font-weight:600}
+/* ---------- coordinates form ---------- */
+.coord{left:60px;top:16px;width:min(320px,calc(100% - 76px));padding:14px;display:flex;flex-direction:column;gap:10px}
+.coord[hidden]{display:none}
+.cgrid{display:grid;grid-template-columns:1fr 1fr .8fr;gap:8px}
+.cerr{margin:0;font-size:12px;color:var(--warn)}
+.cerr:empty{display:none}
+
 .tip{position:fixed;pointer-events:none;z-index:3000;background:var(--text);color:var(--bg);font-size:12px;line-height:16px;padding:6px 8px;border-radius:6px;display:none;max-width:260px}
 
 /* ---------- responsive ---------- */
@@ -216,6 +253,9 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-newchat" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></symbol>
   <symbol id="i-panel-close" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18M8 10l2 2-2 2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+  <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-9 8"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
 </svg>
@@ -225,6 +265,7 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
     <div class="brand"><span class="mark" id="mark" aria-hidden="true"></span><span>Burning Activity Calendar</span></div>
     <label class="field" title="Area of interest"><svg class="i"><use href="#i-search"/></svg><select id="area" aria-label="Area"></select></label>
     <button class="btn" id="draw"><svg class="i"><use href="#i-pen"/></svg><span class="hide-s">Draw area</span></button>
+    <button class="btn" id="coordBtn" aria-expanded="false" aria-controls="coord" title="Area around a latitude/longitude"><svg class="i"><use href="#i-pin"/></svg><span class="hide-s">Coordinates</span></button>
     <div class="spacer"></div>
     <span class="pill hide-s" id="dataPill" title="Loading data…"><svg class="i" style="width:14px;height:14px"><use href="#i-info"/></svg><span>Illustrative data</span></span>
     <button class="btn ember-toggle" id="ember-toggle" aria-expanded="false" aria-controls="ember-panel" title="Ask Ember, the A11 assistant"><span class="ember-mini" id="ember-mini" aria-hidden="true"></span><span class="hide-s">Ask Ember</span></button>
@@ -238,7 +279,8 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
         <button role="tab" aria-selected="true" data-t="overview">Overview</button>
         <button role="tab" aria-selected="false" data-t="season">Season</button>
         <button role="tab" aria-selected="false" data-t="burn">Burn calendar</button>
-        <button role="tab" aria-selected="false" data-t="data">Data</button>
+        <button role="tab" aria-selected="false" data-t="method">Method</button>
+        <button role="tab" aria-selected="false" data-t="data">Report</button>
       </nav>
 
       <section class="pane" id="p-overview" role="tabpanel">
@@ -257,6 +299,12 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
           <div class="typ" id="typ"></div>
           <div class="typ"><div class="ml" style="grid-column:1/-1" id="typm"></div></div>
           <div class="foot" id="seasonLine"></div>
+        </div>
+        <div class="sect" id="repSect" hidden>
+          <h4>Detected vs reported fires</h4>
+          <p class="muted" style="margin:0" id="repLine"></p>
+          <div class="reprows" id="repRows"></div>
+          <div class="foot">Reported: CONAFOR wildfire records (forest land, by start date), datos.gob.mx, CC BY 4.0. Agricultural burns are rarely reported, so satellites usually see many more hotspots than reported fires.</div>
         </div>
       </section>
 
@@ -281,21 +329,62 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
         <div class="result" id="burnOut"></div>
       </section>
 
-      <section class="pane" id="p-data" role="tabpanel" hidden>
-        <div class="eyebrow">Download</div>
-        <div class="dl">
-          <button class="btn" id="csv"><svg class="i"><use href="#i-dl"/></svg>Monthly calendar · CSV</button>
-          <button class="btn" disabled style="opacity:.7;cursor:default"><svg class="i"><use href="#i-dl"/></svg>Hotspots in this area · CSV<span class="pill soon">Soon</span></button>
-          <button class="btn" disabled style="opacity:.7;cursor:default"><svg class="i"><use href="#i-dl"/></svg>One-page summary · PDF<span class="pill soon">Soon</span></button>
+      <section class="pane" id="p-method" role="tabpanel" hidden>
+        <div class="eyebrow">Does the sensor still matter?</div>
+        <p class="sentence" style="margin-top:4px" id="mSum">Loading the raw sensor counts…</p>
+        <div class="sect mchart">
+          <h4>Hotspots per year, before and after harmonization</h4>
+          <svg id="mAnnual" role="img" aria-label="Yearly hotspots: raw MODIS, raw VIIRS and the harmonized series"></svg>
+          <div class="lg2"><span><i style="background:var(--text)"></i>Harmonized</span><span><i style="background:#E8590C"></i>VIIRS NOAA-20 (raw)</span><span><i style="background:var(--text-3)"></i>MODIS Terra+Aqua (raw)</span></div>
         </div>
-        <details><summary>What's in the monthly file?</summary>
-          <p>One row per year and month: <code>area, year, month, count, sensor_era, harmonized, low, high, baseline_median, percentile, category</code>.</p></details>
+        <div class="sect mchart">
+          <h4 id="mOverTitle">Overlap years: VIIRS vs adjusted MODIS</h4>
+          <svg id="mOver" role="img" aria-label="Monthly VIIRS hotspots against MODIS adjusted to the VIIRS scale in the overlap years"></svg>
+          <div class="lg2"><span><i class="bar" style="background:var(--surface-3)"></i>VIIRS NOAA-20 (observed)</span><span><i style="background:#E8590C"></i>MODIS adjusted (predicted)</span></div>
+        </div>
+        <div class="sect">
+          <h4>Cross-validation by year</h4>
+          <table class="mtab" id="mTab"></table>
+          <div class="foot">Each year is predicted with the ratio of the <i>other</i> overlap years (leave-one-year-out), so the check never sees the year it tests.</div>
+        </div>
+        <div class="sect notes">
+          <h4>How the record is harmonized</h4>
+          <p id="mMethod"></p>
+          <p><b>Why a ratio.</b> VIIRS (375 m) sees smaller fires than MODIS (1 km), so it reports several times more hotspots for the same fires, but both follow the same season. Scaling MODIS to the VIIRS level of each area puts 25 years on one scale.</p>
+          <p><b>Uncertainty.</b> MODIS-era months carry a low–high range from the spread of the yearly ratios (10th–90th percentile).</p>
+        </div>
+      </section>
+
+      <section class="pane" id="p-data" role="tabpanel" hidden>
+        <div class="eyebrow">Date range</div>
+        <div class="rangepick">
+          <label>From<input type="month" id="rgFrom" aria-label="Start month"></label>
+          <label>To<input type="month" id="rgTo" aria-label="End month"></label>
+        </div>
+        <div class="chips" id="rgPresets" aria-label="Range presets">
+          <button data-p="year">This year</button><button data-p="12">Last 12 months</button><button data-p="season">Last fire season</button><button data-p="all">Full record</button>
+        </div>
+        <div id="rgSum"></div>
+        <div class="sect">
+          <div class="eyebrow">Download</div>
+          <div class="dl">
+            <button class="btn" id="hotcsv"><svg class="i"><use href="#i-dl"/></svg>Hotspots in this area and range · CSV</button>
+            <button class="btn" id="csv"><svg class="i"><use href="#i-dl"/></svg>Monthly calendar for the range · CSV</button>
+            <button class="btn" id="calpng"><svg class="i"><use href="#i-img"/></svg>Burning calendar · PNG</button>
+            <button class="btn" id="chartpng"><svg class="i"><use href="#i-img"/></svg>Charts · PNG</button>
+            <button class="btn" id="report"><svg class="i"><use href="#i-doc"/></svg>One-page summary · print or PDF</button>
+          </div>
+          <p class="dlmsg" id="dlMsg" role="status" aria-live="polite"></p>
+          <details><summary>What's in the files?</summary>
+            <p><b>Hotspots CSV:</b> one row per satellite detection (vegetation fires) inside the area and range, all satellites: <code>acq_date, acq_time (UTC HHMM), latitude, longitude, sensor, satellite, confidence, conf_class, frp, brightness, bright_2, scan, track, daynight, fire_type, processing, version</code>. Up to 200,000 rows.</p>
+            <p><b>Monthly CSV:</b> one row per month in the range: <code>area, year, month, count, sensor_era, harmonized, low, high, baseline_median, percentile, category</code>.</p></details>
+        </div>
         <div class="sect notes">
           <h4>About the data</h4>
           <p><b>Hotspots are satellite detections, not confirmed fires.</b> They include agricultural burns and will not match official fire counts.</p>
-          <p><b>One consistent record.</b> MODIS (2001–2011) is adjusted to the VIIRS scale so years can be compared; those years carry an estimate range.</p>
-          <p><b>"Normal"</b> means the middle third of the same month in 2001–2025, for the same days when the month is still in progress.</p>
-          <p>Source: NASA FIRMS (MODIS C6.1, VIIRS 375 m).</p>
+          <p><b>One consistent record.</b> MODIS-era years are adjusted to the VIIRS scale so years can be compared; those years carry an estimate range. See the Method tab.</p>
+          <p><b>"Normal"</b> means the middle third of the same month in the baseline years, for the same days when the month is still in progress.</p>
+          <p>Source: NASA FIRMS (MODIS C6.1, VIIRS 375 m). We acknowledge the use of data from NASA's Fire Information for Resource Management System (FIRMS), part of NASA's LANCE and ESDIS.</p>
         </div>
       </section>
     </aside>
@@ -308,6 +397,17 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
           <label><input type="checkbox" id="lyArea" checked> Area outline</label>
         </div>
         <div class="float legend"><div class="row"><span class="dotg"></span><span id="legCount">Hotspots</span></div><div class="row"><span class="outl"></span>Area of interest</div></div>
+        <form class="float coord" id="coord" hidden novalidate>
+          <div class="eyebrow">Area around a point</div>
+          <div class="cgrid">
+            <label>Latitude<input id="cLat" inputmode="decimal" autocomplete="off" placeholder="25.42"></label>
+            <label>Longitude<input id="cLon" inputmode="decimal" autocomplete="off" placeholder="-100.15"></label>
+            <label>Radius km<input id="cRad" type="number" min="1" max="150" step="1" value="25"></label>
+          </div>
+          <p class="foot" style="margin:0">Decimal degrees. You can paste "lat, lon" into Latitude.</p>
+          <p class="cerr" id="cErr" role="alert"></p>
+          <div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" id="cCancel">Cancel</button><button type="submit" class="btn ink">Show this area</button></div>
+        </form>
         <div class="float drawhint" id="drawhint"><svg class="i"><use href="#i-pen"/></svg><span>Click to add points · double-click to finish</span><button class="btn icon" id="drawCancel" aria-label="Cancel drawing" style="height:28px;width:28px"><svg class="i"><use href="#i-x"/></svg></button></div>
       </div>
       <div class="dock">
@@ -315,7 +415,7 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
           <button class="btn icon" id="play" aria-label="Play through time"><svg class="i"><use href="#i-play"/></svg></button>
           <div class="now" id="nowLabel"></div>
           <div class="stripes" id="stripes" tabindex="0" role="slider" aria-label="Month" aria-valuemin="0">
-            <div class="bars" id="bars"></div><div class="yrs" id="yrs"></div><div class="era" id="era"></div><div class="cursor" id="cursor"></div>
+            <div class="bars" id="bars"></div><div class="yrs" id="yrs"></div><div class="era" id="era"></div><div class="rband" id="rband" title="Date range of the Report tab"></div><div class="cursor" id="cursor"></div>
           </div>
         </div>
         <div class="charts">
@@ -423,7 +523,15 @@ $('theme').onclick=()=>{const t=dark()?'light':'dark';document.documentElement.d
 $('export').onclick=()=>selectTab('data');
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>selectTab(b.dataset.t));
 function selectTab(t){document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.t===t));
-  ['overview','season','burn','data'].forEach(p=>$('p-'+p).hidden=p!==t)}
+  ['overview','season','burn','method','data'].forEach(p=>$('p-'+p).hidden=p!==t);
+  if(t==='method'&&area)renderMethod();if(t==='data'&&area)renderRangeSum()}
+// Request body that identifies the current area to the API: an area of the picker, or the drawn outline.
+const spec=a=>a.drawn?{polygon:a.poly}:{area:a.id};
+const realData=a=>!H.synthetic&&a.synthetic!==true;
+const pad2=n=>String(n).padStart(2,'0');
+const dayStr=(y,m,d)=>`${y}-${pad2(m+1)}-${pad2(d)}`;
+function save(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+const fileStem=()=>area.name.replace(/\W+/g,'_').replace(/^_|_$/g,'')+(realData(area)?'':'_ILLUSTRATIVE');
 
 /* ================= map ================= */
 const map=L.map('map',{zoomControl:false,preferCanvas:true,attributionControl:true,doubleClickZoom:false});
@@ -445,13 +553,34 @@ function renderMap(){
   areaLayer.clearLayers();hotLayer.clearLayers();
   const poly=L.polygon(area.poly,{color:css('--text'),weight:2,dashArray:'6 5',fill:true,fillColor:css('--text'),fillOpacity:.03,interactive:false}).addTo(areaLayer);
   if(fitted!==area.id){map.fitBounds(poly.getBounds(),{padding:[60,60]});fitted=area.id}
-  const v=val(area,sel.y,sel.m)||0,b=poly.getBounds(),r=rng(sel.y*12+sel.m+area.id.length*7),n=Math.min(v,700);let g=0,k=0;
+  const v=val(area,sel.y,sel.m)||0,label=`${v.toLocaleString()} hotspots · ${MONTHS[sel.m]} ${sel.y}`;
+  if(!realData(area)){scatterDots(v,poly.getBounds());$('legCount').textContent=`${label}${v>700?' (700 shown)':''} · positions illustrative`;return}
+  // Real detections of this month from the database. MODIS-era months show the MODIS detections (the count above is
+  // their VIIRS-equivalent); VIIRS months show NOAA-20, the reference of the harmonized series.
+  const modis=(area.src[sel.y]?.[sel.m]||'VIIRS')!=='VIIRS',sats=modis?['Terra','Aqua']:['NOAA20'];
+  const from=dayStr(sel.y,sel.m,1),to=dayStr(sel.y,sel.m,isPartial(sel.y,sel.m)?NOW_D:daysIn(sel.y,sel.m));
+  const key=`${area.id}|${from}|${sats}`,want=++dotsSeq;
+  const draw=res=>{if(want!==dotsSeq)return;hotLayer.clearLayers();
+    res.points.forEach(([la,lo2,frp])=>{const p=[la,lo2],big=frp>=50;
+      L.circleMarker(p,{radius:big?8:6,stroke:false,fillColor:'#FF4D00',fillOpacity:.13,interactive:false}).addTo(hotLayer);
+      L.circleMarker(p,{radius:big?3.2:2.4,stroke:false,fillColor:'#FFB000',fillOpacity:1,interactive:false}).addTo(hotLayer)});
+    const shown=res.points.length<res.total?` (strongest ${res.points.length.toLocaleString()} shown)`:'';
+    $('legCount').textContent=modis?`${label} · ${res.total.toLocaleString()} MODIS detections${shown}`:`${label}${shown}`};
+  if(DOTS.has(key)){draw(DOTS.get(key));return}
+  $('legCount').textContent=`${label} · loading detections…`;
+  clearTimeout(dotsTimer);if(playing)return;
+  dotsTimer=setTimeout(()=>A11Harmonized.points(spec(area),from,to,sats)
+    .then(res=>{DOTS.set(key,res);draw(res)})
+    .catch(err=>{if(want!==dotsSeq)return;console.warn('Hotspot points unavailable:',err.message);scatterDots(v,poly.getBounds());
+      $('legCount').textContent=`${label}${v>700?' (700 shown)':''} · positions illustrative`}),220);
+}
+let dotsSeq=0,dotsTimer=null;const DOTS=new Map();
+// Fallback when there is no database behind the page: dots scattered inside the outline (the count is right, the places are not).
+function scatterDots(v,b){const r=rng(sel.y*12+sel.m+area.id.length*7),n=Math.min(v,700);let g=0,k=0;
   while(k<n&&g++<40000){const p=[b.getSouth()+r()*(b.getNorth()-b.getSouth()),b.getWest()+r()*(b.getEast()-b.getWest())];
     if(!inside(p,area.poly))continue;k++;
     L.circleMarker(p,{radius:6,stroke:false,fillColor:'#FF4D00',fillOpacity:.13,interactive:false}).addTo(hotLayer);
-    L.circleMarker(p,{radius:2.4,stroke:false,fillColor:'#FFB000',fillOpacity:1,interactive:false}).addTo(hotLayer)}
-  $('legCount').textContent=`${v.toLocaleString()} hotspots · ${MONTHS[sel.m]} ${sel.y}${v>700?' (700 shown)':''}`;
-}
+    L.circleMarker(p,{radius:2.4,stroke:false,fillColor:'#FFB000',fillOpacity:1,interactive:false}).addTo(hotLayer)}}
 
 /* ================= draw area ================= */
 let drawing=null;
@@ -464,17 +593,35 @@ map.on('dblclick',()=>{if(!drawing||drawing.pts.length<3)return;
   endDraw();$('drawhint').classList.add('show');$('drawhint').querySelector('span').textContent='Counting fires in your area…';
   addDrawn(pts,km2).finally(()=>{$('drawhint').classList.remove('show');$('drawhint').querySelector('span').textContent=drawHintText})});
 const drawHintText=$('drawhint').querySelector('span').textContent;
-async function addDrawn(pts,km2){
+
+/* ================= area from coordinates ================= */
+function openCoord(open){$('coord').hidden=!open;$('coordBtn').setAttribute('aria-expanded',open);$('cErr').textContent='';if(open){endDraw();$('cLat').focus()}}
+$('coordBtn').onclick=()=>openCoord($('coord').hidden);
+$('cCancel').onclick=()=>openCoord(false);
+$('coord').addEventListener('keydown',e=>{if(e.key==='Escape')openCoord(false)});
+$('cLat').addEventListener('input',e=>{const m=e.target.value.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*$/);if(m){e.target.value=m[1];$('cLon').value=m[2];$('cRad').focus()}});
+$('coord').onsubmit=async e=>{e.preventDefault();
+  const lat=parseFloat($('cLat').value.replace(',','.')),lon=parseFloat($('cLon').value.replace(',','.')),r=parseFloat($('cRad').value);
+  const err=!Number.isFinite(lat)||Math.abs(lat)>85?'Latitude must be a number between -85 and 85.':!Number.isFinite(lon)||Math.abs(lon)>180?'Longitude must be a number between -180 and 180.':!(r>=1&&r<=150)?'Radius must be between 1 and 150 km.':'';
+  if(err){$('cErr').textContent=err;return}
+  // 64-point circle on the sphere (good to well under 1% for these radii).
+  const pts=[],d=r/6371,la=lat*Math.PI/180,lo1=lon*Math.PI/180;
+  for(let i=0;i<64;i++){const b=2*Math.PI*i/64,la2=Math.asin(Math.sin(la)*Math.cos(d)+Math.cos(la)*Math.sin(d)*Math.cos(b)),
+    lo2=lo1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(la),Math.cos(d)-Math.sin(la)*Math.sin(la2));pts.push([+(la2*180/Math.PI).toFixed(5),+(lo2*180/Math.PI).toFixed(5)])}
+  openCoord(false);$('drawhint').classList.add('show');$('drawhint').querySelector('span').textContent='Counting fires in your area…';
+  await addDrawn(pts,Math.PI*r*r,`${lat.toFixed(3)}, ${lon.toFixed(3)} · ${r} km`).finally(()=>{$('drawhint').classList.remove('show');$('drawhint').querySelector('span').textContent=drawHintText})};
+
+async function addDrawn(pts,km2,name){
   let a;
-  try{a=await A11Harmonized.drawn(pts);a.kind=`drawn · ${a.km2.toLocaleString()} km²`;a.synthetic=false}
+  try{a=await A11Harmonized.drawn(pts);a.kind=`${name?'circle':'drawn'} · ${a.km2.toLocaleString()} km²`;a.synthetic=false}
   catch(err){
-    if(/too large/i.test(err.message)){alert('That area is too large. Draw an area under 100,000 km².');return}
+    if(/too large/i.test(err.message)){alert('That area is too large. Use an area under 100,000 km².');return}
     // No database behind the page (static preview or fake data): illustrative estimate, first area scaled by size.
     console.warn('Drawn area from the database failed, using an illustrative estimate:',err.message);
     const f=Math.max(.05,km2/750),r=rng(Math.round(km2)),src=AREAS[0],g=k=>{const o={};for(const y in src[k])o[y]=src[k][y].map(v=>v==null?null:Math.round(v*f*Math.exp((r()-.5)*.6)));return o};
     a={kind:`drawn · ${Math.round(km2).toLocaleString()} km² · illustrative`,d:g('d'),src:src.src,synthetic:true};
     a.lo={};a.hi={};for(const y in a.d){a.lo[y]=a.d[y].map(v=>v==null?null:isEra(+y)?Math.round(v*.82):v);a.hi[y]=a.d[y].map(v=>v==null?null:isEra(+y)?Math.round(v*1.2):v)}}
-  Object.assign(a,{id:'custom'+Date.now(),name:'Your area',poly:pts});
+  Object.assign(a,{id:'custom'+Date.now(),name:name||'Your area',poly:pts,drawn:true});
   AREAS.push(a);area=a;fillAreas();renderAll(true)}
 
 /* ================= overview ================= */
@@ -639,12 +786,209 @@ function renderNotable(){
   $('notable').querySelectorAll('button').forEach(b=>b.onclick=()=>select(+b.dataset.y,+b.dataset.m));
 }
 
-/* ================= csv ================= */
+/* ================= date range (Report tab) ================= */
+// RG = { a, b }: first and last month of the range as timeline indices (idx). Used by the summary and every download.
+let RG=null;
+const ymOf=i=>({y:Y0+Math.floor(i/12),m:i%12});
+const ymStr=i=>{const {y,m}=ymOf(i);return`${y}-${pad2(m+1)}`};
+const rgLabel=()=>{const a=ymOf(RG.a),b=ymOf(RG.b);return RG.a===RG.b?`${FULL[a.m]} ${a.y}`:`${MONTHS[a.m]} ${a.y} – ${MONTHS[b.m]} ${b.y}`};
+const rgDates=()=>{const a=ymOf(RG.a),b=ymOf(RG.b);return[dayStr(a.y,a.m,1),dayStr(b.y,b.m,isPartial(b.y,b.m)?NOW_D:daysIn(b.y,b.m))]};
+function setRange(a,b,quiet){a=Math.max(0,Math.min(TOTAL-1,a));b=Math.max(0,Math.min(TOTAL-1,b));if(a>b)[a,b]=[b,a];RG={a,b};
+  $('rgFrom').value=ymStr(a);$('rgTo').value=ymStr(b);placeRange();if(!quiet){renderRangeSum();announce()}}
+function placeRange(){const r=$('rband');r.style.left=`${100*RG.a/TOTAL}%`;r.style.width=`calc(${100*(RG.b-RG.a+1)/TOTAL}%)`;
+  r.title=`Report range: ${rgLabel()}`}
+const parseMonth=s=>{const m=/^(\d{4})-(\d{2})$/.exec(s||'');return m?idx(+m[1],+m[2]-1):null};
+$('rgFrom').onchange=()=>{const a=parseMonth($('rgFrom').value);if(a!=null)setRange(a,RG.b);else setRange(RG.a,RG.b)};
+$('rgTo').onchange=()=>{const b=parseMonth($('rgTo').value);if(b!=null)setRange(RG.a,b);else setRange(RG.a,RG.b)};
+function preset(p){const last=TOTAL-1;
+  if(p==='all')return setRange(0,last);
+  if(p==='12')return setRange(last-11,last);
+  if(p==='year')return setRange(idx(CY,0),last);
+  if(p==='season'){const {start,end}=seasonInfo(),y=end<NOW_M?CY:CY-1;return setRange(idx(y,start),idx(y,end))}}
+$('rgPresets').querySelectorAll('button').forEach(b=>b.onclick=()=>preset(b.dataset.p));
+
+function rangeStats(){let tot=0,typ=0,lo2=0,hi2=0,above=0,below=0,n=0,era=0,best=null;
+  for(let i=RG.a;i<=RG.b;i++){const {y,m}=ymOf(i),v=val(area,y,m);if(v==null)continue;const c=classify(v,base(area,y,m));
+    n++;tot+=v;typ+=c.med;lo2+=lo(area,y,m);hi2+=hi(area,y,m);if(HIGH.includes(c.k))above++;if(c.k==='below'||c.k==='mbelow')below++;if(isEra(y))era++;
+    if(!best||v>best.v)best={y,m,v}}
+  return{tot,typ:Math.round(typ),lo:lo2,hi:hi2,above,below,n,era,best}}
+function renderRangeSum(){if(!RG)return;const s=rangeStats(),d=s.typ>=10?Math.round(100*(s.tot-s.typ)/s.typ):null,rep=reportedIn(RG.a,RG.b);
+  $('rgSum').innerHTML=`<div class="sect" style="margin-top:16px;padding-top:16px"><div class="eyebrow">${area.name} · ${rgLabel()}</div>
+    <div class="kv">
+      <div><div class="k">${s.tot.toLocaleString()}</div><div class="l">hotspots${s.era?` · estimate ${s.lo.toLocaleString()}–${s.hi.toLocaleString()}`:''}</div></div>
+      <div><div class="k">${s.typ.toLocaleString()}</div><div class="l">typical for these months${d!=null?` · this is ${d>=0?'+':''}${d}%`:''}</div></div>
+      <div><div class="k">${s.above} <span class="s">of ${s.n}</span></div><div class="l">months above normal${s.below?` · ${s.below} below`:''}</div></div>
+      <div><div class="k">${s.best?`${MONTHS[s.best.m]} ${s.best.y}`:'—'}</div><div class="l">busiest month${s.best?` · ${s.best.v.toLocaleString()}`:''}</div></div>
+      ${rep?`<div style="grid-column:1/-1"><div class="k">${rep.n.toLocaleString()} <span class="s">reported fires · ${Math.round(rep.ha).toLocaleString()} ha</span></div><div class="l">${rep.note}</div></div>`:''}
+    </div></div>`}
+
+/* ================= downloads ================= */
+const dlMsg=t=>$('dlMsg').textContent=t;
+// Monthly calendar of the range.
 $('csv').onclick=()=>{
   const rows=['area,year,month,count,sensor_era,harmonized,low,high,baseline_median,percentile,category'];
-  for(let y=Y0;y<=CY;y++)for(let m=0;m<12;m++){const v=val(area,y,m);if(v==null)continue;const b=base(area,y,m),c=classify(v,b),h=(area.src[y]?.[m]||'VIIRS')!=='VIIRS';
+  for(let i=RG.a;i<=RG.b;i++){const {y,m}=ymOf(i),v=val(area,y,m);if(v==null)continue;const b=base(area,y,m),c=classify(v,b),h=(area.src[y]?.[m]||'VIIRS')!=='VIIRS';
     rows.push([`"${area.name}"`,y,m+1,v,h?'MODIS':'VIIRS',h,lo(area,y,m),hi(area,y,m),median(b),c.p.toFixed(1),CATS[c.k].l].join(','))}
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`calendar_${area.name.replace(/\W+/g,'_')}${H.synthetic?'_ILLUSTRATIVE':''}.csv`;a.click()};
+  save(new Blob([rows.join('\n')+'\n'],{type:'text/csv'}),`calendar_${fileStem()}_${ymStr(RG.a)}_${ymStr(RG.b)}.csv`);dlMsg(`Saved ${rows.length-1} months.`)};
+// Every detection in the area and range, from the database.
+$('hotcsv').onclick=async()=>{
+  if(!realData(area)){dlMsg('Individual hotspots need the live database; this view shows illustrative data.');return}
+  const [from,to]=rgDates(),btn=$('hotcsv');btn.disabled=true;dlMsg(`Collecting the hotspots of ${rgLabel()}…`);
+  try{const r=await A11Harmonized.csv(spec(area),from,to);save(r.blob,`hotspots_${fileStem()}_${from}_${to}.csv`);
+    dlMsg(r.rows?`Saved ${r.rows.toLocaleString()} detections (all satellites).${r.truncated?' The file stops at 200,000 rows: choose a shorter range for the rest.':''}`:'No hotspots in this area and range. The file has only the header.')}
+  catch(err){dlMsg(`Could not prepare the file: ${err.message}`)}
+  finally{btn.disabled=false}};
+
+// SVG charts to PNG: CSS variables and text styles are resolved into the SVG so it renders the same outside the page.
+function svgToImage(svg){return new Promise((res,rej)=>{const {W,H}=svgSize(svg);
+  let x=new XMLSerializer().serializeToString(svg).replace(/var\((--[\w-]+)\)/g,(_,v)=>css(v)).replace(/ data-tip="[^"]*"/g,'');
+  x=x.replace(/^<svg/,`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"`).replace(/(<svg[^>]*>)/,`$1<style>text{fill:${css('--text-3')};font:12px Inter,system-ui,sans-serif}</style>`);
+  const img=new Image();img.onload=()=>res(img);img.onerror=rej;img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(x)})}
+function canvasOf(W,H){const c=document.createElement('canvas'),k=2;c.width=W*k;c.height=H*k;const g=c.getContext('2d');g.scale(k,k);g.fillStyle=css('--surface');g.fillRect(0,0,W,H);return{c,g}}
+const FONT=w=>`${w} Inter,system-ui,sans-serif`;
+function footer(g,W,H){g.fillStyle=css('--text-3');g.font=FONT('400 11px');g.textAlign='left';
+  g.fillText('Source: NASA FIRMS (MODIS C6.1, VIIRS 375 m), on the VIIRS NOAA-20 scale',16,H-26);
+  g.fillText(`A11 · NASA Space Apps 2026 · ${new Date().toISOString().slice(0,10)}${H_note()}`,16,H-11)}
+const H_note=()=>realData(area)?(H.provisional?' · provisional method':''):' · ILLUSTRATIVE DATA';
+// The year × month calendar as a picture, in the colour mode of the Season tab.
+function calendarCanvas(){
+  const yrs=[];for(let y=CY;y>=Y0;y--)yrs.push(y);
+  const cw=40,chh=16,left=56,top=74,W=left+12*cw+24,Hh=top+yrs.length*(chh+2)+96,{c,g}=canvasOf(W,Hh);
+  g.fillStyle=css('--text');g.font=FONT('600 16px');g.fillText(`Burning activity calendar · ${area.name}`,16,26);
+  g.fillStyle=css('--text-2');g.font=FONT('400 12px');g.fillText(mode==='count'?'Hotspots per month (VIIRS-equivalent)':`Each month compared with the same month in ${Y0}–${Y1}`,16,44);
+  g.fillStyle=css('--text-3');g.textAlign='center';MONTHS.forEach((m,i)=>g.fillText(m,left+i*cw+cw/2,top-8));
+  yrs.forEach((y,r)=>{const yy=top+r*(chh+2);g.textAlign='right';g.fillStyle=css('--text-3');g.fillText(y,left-8,yy+12);
+    for(let m=0;m<12;m++){const x=left+m*cw;if(isFuture(y,m)){g.strokeStyle=css('--border');g.strokeRect(x+.5,yy+.5,cw-3,chh-1);continue}
+      const v=val(area,y,m),cc=classify(v,base(area,y,m));g.fillStyle=mode==='count'?countColor(v):anomColor(cc.k);g.fillRect(x,yy,cw-2,chh);
+      const i=idx(y,m);if(i>=RG.a&&i<=RG.b&&!(RG.a===0&&RG.b===TOTAL-1)){g.strokeStyle=css('--text');g.lineWidth=1;g.strokeRect(x+.5,yy+.5,cw-3,chh-1)}}});
+  const eraTop=top+(CY-ERA_END)*(chh+2),eraBot=top+yrs.length*(chh+2)-2;g.fillStyle=css('--text-3');g.fillRect(left+12*cw+4,eraTop,3,eraBot-eraTop);
+  g.save();g.translate(left+12*cw+18,(eraTop+eraBot)/2);g.rotate(-Math.PI/2);g.textAlign='center';g.font=FONT('400 10px');g.fillText('MODIS era, adjusted',0,0);g.restore();
+  const keys=mode==='count'?[['0',css('--surface-2')],['1–5',countColor(1)],['21–50',countColor(30)],['101–250',countColor(150)],['501–1000',countColor(600)],['>3000',countColor(4000)]]
+    :['record','much','above','normal','below','mbelow'].map(k=>[CATS[k].l,anomColor(k)]);
+  let kx=16;const ky=Hh-58;g.textAlign='left';g.font=FONT('400 11px');keys.forEach(([l,col])=>{g.fillStyle=col;g.fillRect(kx,ky-9,11,11);g.fillStyle=css('--text-2');g.fillText(l,kx+15,ky);kx+=g.measureText(l).width+30});
+  footer(g,W,Hh);return c}
+$('calpng').onclick=()=>calendarCanvas().toBlob(b=>{save(b,`calendar_${fileStem()}.png`);dlMsg('Saved the calendar picture.')});
+async function chartsCanvas(){
+  const [p,a]=await Promise.all([svgToImage($('prof')),svgToImage($('annual'))]),W=Math.max(p.width,a.width,460)+32,Hh=p.height+a.height+146,{c,g}=canvasOf(W,Hh);
+  g.fillStyle=css('--text');g.font=FONT('600 16px');g.fillText(area.name,16,26);
+  g.font=FONT('500 12px');g.fillStyle=css('--text-3');g.fillText(`SEASON PROFILE · ${sel.y} (orange) vs normal range`,16,50);g.drawImage(p,16,58);
+  g.fillText('HOTSPOTS PER YEAR · hatched = MODIS era',16,p.height+82);g.drawImage(a,16,p.height+90);
+  footer(g,W,Hh);return c}
+$('chartpng').onclick=async()=>{try{(await chartsCanvas()).toBlob(b=>{save(b,`charts_${fileStem()}_${sel.y}.png`);dlMsg('Saved the charts picture.')})}catch(err){dlMsg('Could not draw the charts: '+err.message)}};
+// One-page summary in a new tab, ready for the browser's Print → Save as PDF.
+$('report').onclick=async()=>{
+  const w=window.open('','_blank');if(!w){dlMsg('Allow pop-ups for this site to open the summary.');return}
+  w.document.write('<p style="font:14px system-ui;padding:24px">Preparing the summary…</p>');
+  const cal=calendarCanvas().toDataURL('image/png'),ch=(await chartsCanvas().catch(()=>null))?.toDataURL('image/png');
+  const s=rangeStats(),v=val(area,sel.y,sel.m),c=classify(v,base(area,sel.y,sel.m)),V=await validationFor(area).catch(()=>null),rep=reportedIn(RG.a,RG.b);
+  const esc=t=>String(t).replace(/[&<>"]/g,ch2=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch2]));
+  const row=(k,v2)=>`<tr><th>${k}</th><td>${v2}</td></tr>`;
+  w.document.open();w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Burning activity summary · ${esc(area.name)}</title>
+<style>body{font:13px/1.45 Inter,system-ui,sans-serif;color:#1A1714;margin:28px auto;max-width:820px;padding:0 20px}h1{font-size:22px;margin:0}h2{font-size:13px;text-transform:uppercase;letter-spacing:.03em;color:#7A746C;margin:22px 0 6px}
+.sub{color:#4F4A44;margin:4px 0 0}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #E4E1DD;vertical-align:top}th{width:42%;font-weight:500;color:#4F4A44}
+img{max-width:100%;border:1px solid #E4E1DD;border-radius:6px}.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}.warn{background:#FFF4E5;padding:8px 10px;border-radius:6px}
+.bar{display:flex;justify-content:space-between;align-items:center}button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid #1A1714;background:#1A1714;color:#fff;cursor:pointer}
+@media print{button{display:none}body{margin:0}.two{grid-template-columns:1fr 1fr}}</style></head><body>
+<div class="bar"><div><h1>Burning activity · ${esc(area.name)}</h1><p class="sub">${esc(area.kind)} · range ${esc(rgLabel())} · data through ${esc(H.meta.data_through)}</p></div><button onclick="print()">Print / Save as PDF</button></div>
+${realData(area)?'':'<p class="warn"><b>Illustrative data.</b> These numbers are synthetic and are not real FIRMS detections.</p>'}
+<h2>Selected range</h2><table>
+${row('Hotspots (VIIRS-equivalent)',`${s.tot.toLocaleString()}${s.era?` (estimate ${s.lo.toLocaleString()}–${s.hi.toLocaleString()})`:''}`)}
+${row('Typical for these months',`${s.typ.toLocaleString()}${s.typ>=10?` · ${s.tot>=s.typ?'+':''}${Math.round(100*(s.tot-s.typ)/s.typ)}%`:''}`)}
+${row('Months above / below normal',`${s.above} / ${s.below} of ${s.n}`)}
+${row('Busiest month',s.best?`${FULL[s.best.m]} ${s.best.y} · ${s.best.v.toLocaleString()} hotspots`:'—')}
+${rep?row('Reported fires (CONAFOR)',`${rep.n.toLocaleString()} fires · ${Math.round(rep.ha).toLocaleString()} ha · ${esc(rep.note)}`):''}
+</table>
+<h2>Month in focus</h2><table>${row(`${FULL[sel.m]} ${sel.y}${isPartial(sel.y,sel.m)?` (1–${NOW_D})`:''}`,`${v.toLocaleString()} hotspots · ${CATS[c.k].l} · typical ${Math.round(c.med).toLocaleString()} · percentile ${c.p.toFixed(0)}`)}</table>
+<h2>Burning calendar</h2><div class="two"><img src="${cal}" alt="Burning activity calendar">${ch?`<img src="${ch}" alt="Season profile and yearly hotspots">`:''}</div>
+<h2>Harmonization check</h2><p>${V&&V.ok?esc(V.sentence):'Not available for this area.'}</p>
+<h2>Method and sources</h2><p>${esc(H.meta.method||'')}. Hotspots are satellite detections of active fires (vegetation fires only), not confirmed fires; they include agricultural burns. "Normal" is the middle third of the same month in ${Y0}–${Y1}.</p>
+<p>Data: NASA FIRMS (MODIS Collection 6.1 Terra/Aqua, VIIRS 375 m NOAA-20). We acknowledge the use of data from NASA's Fire Information for Resource Management System (FIRMS), part of NASA's LANCE and ESDIS.${rep?' Reported fires: CONAFOR, Incendios forestales, datos.gob.mx (CC BY 4.0).':''}</p>
+<p class="sub">Generated ${new Date().toISOString().slice(0,16).replace('T',' ')} UTC by the A11 Burning Activity Calendar (NASA Space Apps 2026).</p></body></html>`);w.document.close();dlMsg('The summary opened in a new tab.')};
+
+/* ================= reported fires (CONAFOR, Mexico) ================= */
+// Columnar file built by analysis/build_reported_fires.py: t = months since first_year-01, lat/lon x1000, ha x10.
+let REP=null;
+const repReady=fetch('/data/reported/conafor-mx.json').then(r=>r.ok?r.json():null).then(j=>{REP=j;return j}).catch(()=>null);
+// Per-month [fires, ha] of the area, keyed by timeline index; cached on the area. null when the area has no reported data.
+function repOf(a){
+  if(!REP)return null;if(a.rep!==undefined)return a.rep;
+  const la=a.poly.map(p=>p[0]),lo2=a.poly.map(p=>p[1]),n0=Math.min(...la),n1=Math.max(...la),e0=Math.min(...lo2),e1=Math.max(...lo2);
+  // Only for areas inside Mexico's CONAFOR coverage; elsewhere "0 reported" would be misleading.
+  if(n1<14||n0>33.5||e1<-118.5||e0>-86){a.rep=null;return null}
+  const by=new Map(),off=idx(REP.first_year,0);
+  for(let i=0;i<REP.t.length;i++){const y=REP.lat[i]/1000,x=REP.lon[i]/1000;if(y<n0||y>n1||x<e0||x>e1||!inside([y,x],a.poly))continue;
+    const k=off+REP.t[i],c=by.get(k)||[0,0];c[0]++;c[1]+=REP.ha[i]/10;by.set(k,c)}
+  return a.rep={by,i0:Math.max(0,off),i1:Math.min(TOTAL-1,off+REP.t.reduce((m,v)=>v>m?v:m,0))}}
+// Reported fires in timeline months a..b, limited to the years CONAFOR covers.
+function reportedIn(a,b){const r=repOf(area);if(!r)return null;const lo3=Math.max(a,r.i0),hi3=Math.min(b,r.i1);if(lo3>hi3)return null;
+  let n=0,ha=0;for(let i=lo3;i<=hi3;i++){const c=r.by.get(i);if(c){n+=c[0];ha+=c[1]}}
+  const part=lo3>a||hi3<b;return{n,ha,note:`CONAFOR records${part?`, counted for ${ymOf(lo3).y}–${ymOf(hi3).y} only (the years it covers)`:''}`}}
+function renderReported(){
+  const r=repOf(area),sect=$('repSect');if(!r){sect.hidden=true;return}sect.hidden=false;
+  const rows=[];for(let y=ymOf(r.i0).y;y<=ymOf(r.i1).y;y++){let n=0,ha=0,hs=0;for(let m=0;m<12;m++){const c=r.by.get(idx(y,m));if(c){n+=c[0];ha+=c[1]}hs+=val(area,y,m)??0}rows.push({y,n,ha,hs})}
+  const tn=rows.reduce((s,o)=>s+o.n,0),tha=rows.reduce((s,o)=>s+o.ha,0),ths=rows.reduce((s,o)=>s+o.hs,0),mn=Math.max(1,...rows.map(o=>o.n)),mh=Math.max(1,...rows.map(o=>o.hs));
+  const c=r.by.get(idx(sel.y,sel.m)),inCov=idx(sel.y,sel.m)>=r.i0&&idx(sel.y,sel.m)<=r.i1;
+  $('repLine').innerHTML=tn?`${rows[0].y}–${rows.at(-1).y}: <b style="color:var(--text)">${tn.toLocaleString()}</b> reported fires (${Math.round(tha).toLocaleString()} ha) and ${ths.toLocaleString()} hotspots, about ${Math.round(ths/tn).toLocaleString()} hotspots per reported fire.`+
+    (inCov?` ${FULL[sel.m]} ${sel.y}: ${c?`${c[0]} reported (${Math.round(c[1]).toLocaleString()} ha)`:'none reported'}.`:'')
+    :`No CONAFOR-reported fires inside this area in ${rows[0].y}–${rows.at(-1).y}. Its hotspots are likely agricultural or other non-forest burning.`;
+  $('repRows').innerHTML='<span class="h">Year</span><span class="h">Hotspots</span><span class="h">Reported fires</span>'+rows.map(o=>`<span class="${o.y===sel.y?'sel':''}">${o.y}</span>
+    <span class="b" data-tip="${o.y}: ${o.hs.toLocaleString()} hotspots"><i style="width:${100*o.hs/mh}%;background:var(--surface-3)"></i><span>${o.hs.toLocaleString()}</span></span>
+    <span class="b" data-tip="${o.y}: ${o.n} reported fires · ${Math.round(o.ha).toLocaleString()} ha"><i style="width:${100*o.n/mn}%;background:#F4A261"></i><span>${o.n.toLocaleString()}</span></span>`).join('')}
+
+/* ================= method tab: is the record still split by sensor? ================= */
+const RAW=new Map();
+function validationFor(a){
+  if(RAW.has(a.id))return RAW.get(a.id);
+  const p=(realData(a)?A11Harmonized.raw(spec(a)):Promise.resolve(fakeRaw(a))).then(rows=>validate(a,rows));
+  RAW.set(a.id,p);p.catch(()=>RAW.delete(a.id));return p}
+// Without the database: raw counts invented from the illustrative series, so the tab can be previewed.
+function fakeRaw(a){const r=rng(7+a.id.length),rows=[];for(let y=Y0;y<=CY;y++)for(let m=0;m<12;m++){const v=val(a,y,m);if(v==null)continue;
+  const k=4.2*Math.exp((r()-.5)*.5);rows.push({month:`${y}-${pad2(m+1)}`,modis:Math.round(v/k),noaa20:y>ERA_END?v:0})}return rows}
+function validate(a,rows){
+  const M={},V={};rows.forEach(r=>{const y=+r.month.slice(0,4),m=+r.month.slice(5,7)-1;(M[y]??=Array(12).fill(0))[m]=r.modis;(V[y]??=Array(12).fill(0))[m]=r.noaa20});
+  const sum=x=>x?x.reduce((s,v)=>s+v,0):0;
+  const years=[];for(let y=ERA_END+1;y<=Y1;y++)if(sum(M[y])>=5&&sum(V[y])>0)years.push(y);
+  const ratio=y=>sum(V[y])/sum(M[y]),annual=[];
+  for(let y=Y0;y<=CY;y++){let h=0;for(let m=0;m<12;m++)h+=val(a,y,m)??0;annual.push({y,modis:sum(M[y]),viirs:sum(V[y]),harm:h})}
+  const out={ok:years.length>=3,years,annual,M,V};
+  if(!out.ok){out.sentence=`Too few fires in the overlap years (${ERA_END+1}–${Y1}) to test the adjustment in this area; the database-wide ratio is used instead.`;return out}
+  const k=median(years.map(ratio)),pairs=[],tab=[];
+  years.forEach(y=>{const kk=median(years.filter(z=>z!==y).map(ratio)),pred=sum(M[y])*kk,obs=sum(V[y]);
+    tab.push({y,modis:sum(M[y]),obs,pred:Math.round(pred),k:ratio(y),err:obs?100*(pred-obs)/obs:0});
+    for(let m=0;m<12;m++)pairs.push([M[y][m]*kk,V[y][m]])});
+  const mx=pairs.reduce((s,p)=>s+p[0],0)/pairs.length,my=pairs.reduce((s,p)=>s+p[1],0)/pairs.length;
+  let sxy=0,sxx=0,syy=0;pairs.forEach(([x,y])=>{sxy+=(x-mx)*(y-my);sxx+=(x-mx)**2;syy+=(y-my)**2});
+  const r=sxx&&syy?sxy/Math.sqrt(sxx*syy):0,mae=median(tab.map(t=>Math.abs(t.err)));
+  Object.assign(out,{k,r,mae,tab,
+    sentence:`Here VIIRS records about ${k.toFixed(1)}× more hotspots than MODIS for the same fires, so joining the raw records would inflate every year after ${ERA_END} by that much. Scaled by the ratio, MODIS predicts each overlap year's VIIRS total within a median ${mae.toFixed(0)}% (leave-one-year-out, ${years[0]}–${years.at(-1)}), and month by month the two agree with r = ${r.toFixed(2)}.`});
+  return out}
+async function renderMethod(){
+  const forArea=area;$('mSum').textContent='Loading the raw sensor counts…';
+  $('mMethod').textContent=`${H.meta.method||''}${H.provisional?' (provisional).':'.'} Reference sensor: ${H.meta.reference}.`;
+  let V;try{V=await validationFor(forArea)}catch(err){if(area===forArea){$('mSum').textContent=`Could not load the raw sensor counts (${err.message}).`;['mAnnual','mOver'].forEach(i=>$(i).innerHTML='');$('mTab').innerHTML=''}return}
+  if(area!==forArea||$('p-method').hidden)return;
+  $('mSum').innerHTML=(realData(area)?'':'<b>Illustrative data.</b> ')+V.sentence;
+  // Yearly lines: raw MODIS, raw VIIRS, harmonized.
+  const svg=$('mAnnual'),{W,H:Hh}=svgSize(svg),L=40,R=8,T=8,B=20,A=V.annual.filter(o=>o.y<CY),n=A.length;
+  const mx=Math.max(1,...A.map(o=>Math.max(o.modis,o.viirs,o.harm)))*1.08,x=i=>L+(W-L-R)*i/Math.max(1,n-1),y=v=>T+(Hh-T-B)*(1-v/mx);
+  const line=(f,col,w,dash,from)=>{const pts=A.map((o,i)=>[i,f(o),o]).filter(p=>p[2].y>=(from||0));return`<path d="M${pts.map(p=>`${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('L')}" fill="none" stroke="${col}" stroke-width="${w}" ${dash?`stroke-dasharray="${dash}"`:''}/>`};
+  let h='';[0,.5,1].forEach(f=>{const v=Math.round(mx*f);h+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--border)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v>=1000?Math.round(v/100)/10+'k':v}</text>`});
+  const sx=x(A.findIndex(o=>o.y===ERA_END+1));if(sx)h+=`<line x1="${sx}" x2="${sx}" y1="${T}" y2="${Hh-B}" stroke="var(--text-3)" stroke-dasharray="2 3"/><text x="${sx+4}" y="${T+10}">VIIRS reference</text>`;
+  h+=line(o=>o.modis,'var(--text-3)',1.5,'4 3')+line(o=>o.viirs,'#E8590C',2,null,ERA_END+1)+line(o=>o.harm,'var(--text)',2.5);
+  A.forEach((o,i)=>{h+=`<rect x="${x(i)-4}" y="${T}" width="8" height="${Hh-T-B}" fill="transparent" data-tip="${o.y}: harmonized ${o.harm.toLocaleString()} · VIIRS ${o.viirs.toLocaleString()} · MODIS ${o.modis.toLocaleString()}"/>`;
+    if((o.y-1)%5===0||i===n-1)h+=`<text x="${x(i)}" y="${Hh-4}" text-anchor="middle">${o.y}</text>`});
+  svg.innerHTML=h;
+  const ov=$('mOver');if(!V.ok){ov.innerHTML='';$('mTab').innerHTML='';$('mOverTitle').textContent='Overlap years: not enough fires to compare';return}
+  // Monthly overlap: observed VIIRS bars vs MODIS × leave-one-out ratio.
+  const kOf={};V.tab.forEach(t=>kOf[t.y]=median(V.years.filter(z=>z!==t.y).map(z=>V.tab.find(u=>u.y===z).k)));
+  const mo=[];V.years.forEach(yy=>{for(let m=0;m<12;m++)mo.push({yy,m,obs:V.V[yy][m],pred:V.M[yy][m]*kOf[yy]})});
+  const s2=svgSize(ov),W2=s2.W,H2=s2.H,mx2=Math.max(1,...mo.map(o=>Math.max(o.obs,o.pred)))*1.08,bw=(W2-L-R)/mo.length,y2=v=>T+(H2-T-B)*(1-v/mx2);
+  let h2='';[0,.5,1].forEach(f=>{const v=Math.round(mx2*f);h2+=`<line x1="${L}" x2="${W2-R}" y1="${y2(v)}" y2="${y2(v)}" stroke="var(--border)"/><text x="${L-6}" y="${y2(v)+4}" text-anchor="end">${v>=1000?Math.round(v/100)/10+'k':v}</text>`});
+  mo.forEach((o,i)=>{h2+=`<rect x="${L+i*bw+.5}" y="${y2(o.obs)}" width="${Math.max(1,bw-1)}" height="${H2-B-y2(o.obs)}" fill="var(--surface-3)" data-tip="${MONTHS[o.m]} ${o.yy}: VIIRS ${o.obs} · adjusted MODIS ${Math.round(o.pred)}"/>`;if(o.m===0)h2+=`<text x="${L+i*bw}" y="${H2-4}">${o.yy}</text>`});
+  h2+=`<path d="M${mo.map((o,i)=>`${(L+(i+.5)*bw).toFixed(1)},${y2(o.pred).toFixed(1)}`).join('L')}" fill="none" stroke="#E8590C" stroke-width="1.8"/>`;
+  ov.innerHTML=h2;$('mOverTitle').textContent=`Overlap years ${V.years[0]}–${V.years.at(-1)}: VIIRS vs adjusted MODIS`;
+  $('mTab').innerHTML=`<tr><th>Year</th><th>MODIS raw</th><th>VIIRS observed</th><th>Predicted</th><th>Error</th></tr>`+
+    V.tab.map(t=>`<tr><td>${t.y}</td><td>${t.modis.toLocaleString()}</td><td>${t.obs.toLocaleString()}</td><td>${t.pred.toLocaleString()}</td><td>${t.err>=0?'+':''}${t.err.toFixed(0)}%</td></tr>`).join('')}
 
 /* ================= tooltip ================= */
 const tip=$('tip');
@@ -658,8 +1002,9 @@ window.A11Context=()=>{if(!area)return null;const v=val(area,sel.y,sel.m),b=base
     synthetic:H.synthetic||area.synthetic===true,provisional:H.provisional}};
 const announce=()=>window.dispatchEvent(new Event('a11:context'));
 function select(y,m,fromPlay){if(isFuture(y,m))return;sel={y,m};if(!fromPlay&&playing){clearInterval(playing);playing=null;$('play').innerHTML=icon('i-play',16)}
-  renderHero(true);renderMap();placeCursor();renderProf();renderAnnual();if(!$('p-season').hidden)renderHeat();announce()}
-function renderAll(newArea){if(newArea)fitted=null;renderHero(false);renderMap();renderStripes();placeCursor();renderProf();renderAnnual();renderNotable();renderHeat();renderBurn();
+  renderHero(true);renderMap();placeCursor();renderProf();renderAnnual();renderReported();if(!$('p-season').hidden)renderHeat();announce()}
+function renderAll(newArea){if(newArea)fitted=null;renderHero(false);renderMap();renderStripes();placeCursor();placeRange();renderProf();renderAnnual();renderNotable();renderHeat();renderBurn();
+  renderReported();renderRangeSum();if(!$('p-method').hidden)renderMethod();
   $('theme').innerHTML=icon(dark()?'i-sun':'i-moon',16);announce()}
 document.querySelector('.tabs').addEventListener('click',()=>setTimeout(()=>{if(!area)return;if(!$('p-season').hidden)renderHeat();if(!$('p-overview').hidden)renderRange(val(area,sel.y,sel.m),base(area,sel.y,sel.m),classify(val(area,sel.y,sel.m),base(area,sel.y,sel.m)))}));
 
@@ -676,7 +1021,9 @@ document.querySelector('.tabs').addEventListener('click',()=>setTimeout(()=>{if(
   if(H.synthetic){pill.title=`Synthetic harmonized series (${H.meta.method}). It is not real FIRMS data.`}
   else{pill.querySelector('span').textContent=`${H.provisional?'Provisional · ':''}Data through ${H.meta.data_through}`;
     pill.title=`${H.meta.units} · reference ${H.meta.reference} · last load ${H.generatedAt.toISOString().slice(0,16).replace('T',' ')} UTC${H.provisional?` · ${H.meta.method}`:''}`}
+  preset('year');
   fillAreas();renderAll(true);
+  repReady.then(j=>{if(j&&area){renderReported();renderRangeSum()}});
   new ResizeObserver(()=>{renderProf();renderAnnual();renderRange(val(area,sel.y,sel.m),base(area,sel.y,sel.m),classify(val(area,sel.y,sel.m),base(area,sel.y,sel.m)));map.invalidateSize()}).observe(document.querySelector('.stage'));
 })();
 </script>
