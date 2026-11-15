@@ -22,6 +22,16 @@ run on the server go in `serverTools()`: today `search_docs`, the document searc
 [`knowledge/`](knowledge/) — see `rag.js`. `CHAT_BACKEND=n8n` switches back to the old
 n8n webhook proxy.
 
+**Memory compaction:** every message is kept in `chat_messages`, but when a conversation passes 30 messages or
+~24k characters since its last summary, the older part is summarized into a `summary` row and the model gets only
+that summary plus the last 10 messages (cut at a user message so tool calls stay with their results).
+
+**Hallucination control:** low temperature (0.3); a GROUNDING section in the prompt (every figure, date or claim
+must come from the App context, a tool result or a doc section; say "I don't have that" instead of guessing; ask when
+ambiguous; only report actions whose result is `ok`); `search_docs` returns nothing below a similarity threshold;
+and a **grounding check** before each reply: numbers in the reply that do not appear in the prompt, summary, user
+messages, tool results or doc sections of the turn trigger one rewrite without them (logged as `grounding:`).
+
 ## Files in `public/`
 
 | File | Page | Purpose |
