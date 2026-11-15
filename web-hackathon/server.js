@@ -62,7 +62,9 @@ if (CHAT_DATABASE_URL && CHAT_DATABASE_URL !== DATABASE_URL) {
     console.error("pg module not available for chat memory:", err.message);
   }
 }
-const agent = CHAT_BACKEND === "langchain" ? chatAgent.createAgent({ pool: chatPool }) : null;
+// Document search (rag.js) when OPENAI_API_KEY is set: indexes knowledge/*.md on start, vectors in rag_chunks.
+const rag = CHAT_BACKEND === "langchain" ? require("./rag").createRag({ pool: chatPool }) : null;
+const agent = CHAT_BACKEND === "langchain" ? chatAgent.createAgent({ pool: chatPool, rag }) : null;
 if (agent) console.log(`chat: LangChain agent, model ${chatAgent.model}`);
 
 const MIME = {
@@ -128,7 +130,7 @@ async function handleAgentChat(res, payload, sessionId, message) {
   }
   try {
     const out = await agent.run(sessionId, input);
-    return sendJson(res, 200, { reply: out.reply, actions: out.actions, sessionId });
+    return sendJson(res, 200, { reply: out.reply, actions: out.actions, done: out.done || [], sessionId });
   } catch (err) {
     console.error("agent error", err.status || "", err.message);
     return sendJson(res, 200, { error: "The assistant is unavailable right now." });
@@ -468,6 +470,7 @@ const server = http.createServer((req, res) => {
       ok: true,
       chat: agent ? "langchain" : N8N_WEBHOOK_URL ? "n8n" : false,
       memory: agent ? agent.memory : null,
+      rag: rag ? rag.status : null,
       db: Boolean(pool),
     });
   const urlPath = new URL(req.url, "http://x").pathname;

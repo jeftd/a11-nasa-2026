@@ -18,7 +18,8 @@ Browser ──POST /api/chat { message }──▶ Node server (Easypanel) ──
 
 The browser never sees the model key. Page tools (search an area, set the month, tabs, layers, hotspot filter,
 area around a point, theme, play) are declared in `chat-agent.js` and implemented in `public/agent.js`; tools that
-must run on the server (the RAG search, later) go in `SERVER_TOOLS`. `CHAT_BACKEND=n8n` switches back to the old
+run on the server go in `serverTools()`: today `search_docs`, the document search (RAG) over
+[`knowledge/`](knowledge/) — see `rag.js`. `CHAT_BACKEND=n8n` switches back to the old
 n8n webhook proxy.
 
 ## Files in `public/`
@@ -83,7 +84,8 @@ Open http://localhost:3000.
   (`postgres://a11_web:<password>@learn_a11-db:5432/firms`; the role `a11_web` is created by `schema.sql` without
   login — enable it once with `ALTER ROLE a11_web LOGIN PASSWORD '<password>';`). It reads the data and appends to
   `chat_messages` (the agent memory, `analysis/db/chat_memory.sql`). Old backend: `CHAT_BACKEND=n8n`,
-  `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`. See `.env.example`.
+  `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`. Document search: `OPENAI_API_KEY` (embeddings; vectors in
+  `rag_chunks`, `analysis/db/rag.sql`). See `.env.example`.
 - **Auto-deploy:** every push to `main` runs `.github/workflows/deploy.yml`, which calls the Easypanel
   deploy webhook stored in the repo secret `EASYPANEL_DEPLOY_WEBHOOK` (Easypanel → service → Deployments →
   Deploy Webhook). Keep Easypanel's own "Auto Deploy" off to avoid double deploys.
@@ -99,7 +101,7 @@ Open http://localhost:3000.
 | `/api/harmonized/polygon` | POST | `{ polygon: [[lat, lon], ...] }` → series for a drawn area |
 | `/api/harmonized/raw` | POST | `{ area }` or `{ polygon }` → raw monthly counts per sensor (Method tab) |
 | `/api/hotspots` | POST | `{ area or polygon, from, to, format: "csv" or "json" }` → individual detections (CSV download, map dots) |
-| `/health` | GET | Health check (`chat` backend, `memory` store, `db` configured) |
+| `/health` | GET | Health check (`chat` backend, `memory` store, `rag` index status, `db` configured) |
 
 ## Preview without Node
 

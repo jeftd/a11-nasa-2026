@@ -156,6 +156,8 @@
           break;
         }
         const actions = Array.isArray(data.actions) ? data.actions : [];
+        // Steps the server already ran (e.g. the document search) join the turn's action stack.
+        if (Array.isArray(data.done)) data.done.forEach((d) => history.push({ role: "act", text: String(d.label || "Step"), state: d.ok === false ? "fail" : "ok" }));
         if (data.reply) history.push({ role: "bot", text: data.reply });
         if (!actions.length || !agentUI) {
           if (!data.reply) history.push({ role: "bot", text: "(empty reply)" });

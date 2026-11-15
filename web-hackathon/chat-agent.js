@@ -147,9 +147,33 @@ const PAGE_TOOLS = [
 ];
 const PAGE_TOOL_NAMES = new Set(PAGE_TOOLS.map((t) => t.name));
 
-// Server-side tools: { name, description, parameters, run(args) -> result }. The RAG search will be added here.
-const SERVER_TOOLS = [];
-const SERVER_TOOL_BY_NAME = new Map(SERVER_TOOLS.map((t) => [t.name, t]));
+// Server-side tools: { name, description, parameters, label(args), run(args) -> result }. They run here, in the same
+// request; the browser only sees their label as a finished step in the chat. If research ever needs several tools
+// (SQL over the hotspots, web search...), wrap them in one "research" tool that runs its own sub-agent, so the main
+// agent keeps a short tool list.
+function serverTools({ rag }) {
+  const tools = [];
+  if (rag)
+    tools.push({
+      name: "search_docs",
+      description:
+        "Search the Ember Atlas documentation (the project, satellites and FIRMS, how the counts are harmonized, how to use the calendar, the 72 h forecast, FAQ). Use it for questions about the project, methods, data sources, definitions or how the site works. Returns the most relevant sections.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "What to look for, as a short question or keywords (English works best)." },
+          k: { type: "integer", minimum: 1, maximum: 8, description: "Number of sections. Default 4." },
+        },
+        required: ["query"],
+      },
+      label: (a) => `Searching the docs: “${String(a.query || "").slice(0, 60)}”`,
+      run: async ({ query, k }) => {
+        const hits = await rag.search(query, k || 4);
+        return hits.length ? { ok: true, results: hits } : { ok: true, results: [], note: "Nothing relevant in the docs." };
+      },
+    });
+  return tools;
+}
 
 const SYSTEM_PROMPT = `You are Ember, the assistant inside Ember Atlas, the Burning Activity Calendar built for NASA Space Apps 2026 (challenge A11).
 The site shows satellite fire hotspots (NASA FIRMS: MODIS 2001+ and VIIRS 2012+, harmonized into VIIRS-equivalent monthly counts) for areas of interest in Mexico and the United States: a map, a 2001→today timeline, a "this month vs normal" category, a season heatmap, a burn-law tab, the method/validation and a 72 h fire forecast model.
@@ -159,6 +183,7 @@ You can USE THE PAGE for the user with tools (the user watches your cursor do it
 - "pon / set <month year>" → set_month. "the previous/next month with fires" → jump_fire_month.
 - tabs, map layers, hotspot filters, a point with a radius, dark/light mode, play the timeline → the matching tool.
 - If you are not sure what is on screen, call get_view.
+- Questions about the project, the satellites, the method, definitions or how to use the site → search_docs (if available), then answer from the sections it returns; mention the document when useful. Do not invent facts that are not in the docs or the data.
 Use page actions ONLY when the user asks to change or show something on the page. For questions ("is this month unusual?", "when is the fire season?", "compare with 2024") answer from the [App context] line, and if you need other months use get_month_data, which reads the numbers WITHOUT moving the page. Never explore by moving the timeline month after month.
 Do the actions the request needs, in order; request independent actions together in one turn, and do not repeat an action that already succeeded. Use as few steps as possible (at most 3–4). After acting, answer briefly with what changed and what is notable, using only the numbers the tools return.
 
@@ -268,8 +293,10 @@ function pendingCalls(rows) {
 const clip = (s, n) => (s.length > n ? s.slice(0, n) + "…" : s);
 
 // ---------------- agent ----------------
-function createAgent({ pool }) {
+function createAgent({ pool, rag }) {
   const store = createStore(pool);
+  const SERVER_TOOLS = serverTools({ rag });
+  const SERVER_TOOL_BY_NAME = new Map(SERVER_TOOLS.map((t) => [t.name, t]));
   let models = null;
   // `act` may call tools; `answer` must reply in words (used when the turn ran out of steps).
   async function getModels() {
@@ -317,6 +344,7 @@ function createAgent({ pool }) {
     // Model steps already taken in this user turn (since the last user message).
     let steps = all.slice(all.map((r) => r.r).lastIndexOf("human") + 1).filter((r) => r.r === "ai").length;
     let lastText = "";
+    const done = []; // server tools run in this request, shown in the chat as finished steps
     try {
       for (let round = 0; round < MAX_ROUNDS; round++) {
         // Out of steps (or the browser says so): no more tools, answer now with what is known.
@@ -334,7 +362,7 @@ function createAgent({ pool }) {
         toSave.push(row);
         msgs.push(deserialize(row, L));
         if (text) lastText = text;
-        if (!calls.length) return { reply: text || (final ? FALLBACK_REPLY : ""), actions: [] };
+        if (!calls.length) return { reply: text || (final ? FALLBACK_REPLY : ""), actions: [], done };
 
         const page = [];
         for (const call of calls) {
@@ -349,14 +377,15 @@ function createAgent({ pool }) {
           } catch (err) {
             result = { ok: false, error: err.message };
           }
+          if (tool) done.push({ label: tool.label ? tool.label(call.args) : call.name, ok: result.ok !== false });
           const toolRow = { r: "tool", id: call.id, c: clip(JSON.stringify(result), 4000) };
           toSave.push(toolRow);
           msgs.push(deserialize(toolRow, L));
         }
         // Page tools: hand them to the browser; their results come back in the next request.
-        if (page.length) return { reply: text, actions: page };
+        if (page.length) return { reply: text, actions: page, done };
       }
-      return { reply: lastText || FALLBACK_REPLY, actions: [] };
+      return { reply: lastText || FALLBACK_REPLY, actions: [], done };
     } finally {
       await store.append(sessionId, toSave);
     }
