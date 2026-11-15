@@ -112,12 +112,33 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .layers label{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:pointer}
 .layers label:hover{background:var(--surface-2)}
 .layers input{accent-color:var(--text)}
-.layers .lysub{display:flex;flex-direction:column;gap:1px;margin:0 0 4px 18px;padding-left:8px;border-left:1px solid var(--border)}
-.layers .lysub label{padding:3px 6px;font-size:12px}
+.layers{max-height:calc(100% - 32px);overflow:auto;overscroll-behavior:contain;width:228px}
+.layers .lyrow{display:flex;align-items:center;gap:4px}
+.layers .lyrow>label{flex:1;min-width:0}
+.lyfbtn{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 8px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text-2);font:inherit;font-size:12px;cursor:pointer;flex:none}
+.lyfbtn:disabled{opacity:.45;cursor:default}
+.lyfbtn:hover{background:var(--surface-2);color:var(--text)}
+.lyfbtn[aria-expanded="true"]{background:var(--surface-2);color:var(--text)}
+.lyfbtn svg.i{width:13px;height:13px}
+.lyfbtn .chev{transition:transform .15s}
+.lyfbtn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.lyfbtn b{min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--text);color:var(--surface);font-size:10px;line-height:16px;text-align:center}
+.lyfbtn b:empty{display:none}
+.layers .lysub{display:flex;flex-direction:column;gap:6px;margin:2px 0 6px;padding:8px;border-radius:8px;background:var(--surface-2)}
+.layers .lysub[hidden]{display:none}
 .layers .lysub.off{opacity:.45;pointer-events:none}
-.layers .lyhead{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:6px 6px 2px}
-.layers .sw{width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2.5px color-mix(in srgb,var(--h) 40%,transparent);flex:none}
-.layers .frpn{margin-left:auto;padding-left:8px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.layers .lyhead{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.layers .lyhead span{letter-spacing:0;text-transform:none}
+.layers .chips{display:flex;flex-wrap:wrap;gap:4px}
+.layers .chips.seg{flex-wrap:nowrap}
+.layers .chips.seg .chip{flex:1;justify-content:center}
+.layers .chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--text-3);font-size:12px;white-space:nowrap;cursor:pointer;user-select:none}
+.layers .chip:hover{background:var(--surface);color:var(--text-2)}
+.layers .chip:has(input:checked){border-color:var(--text);color:var(--text)}
+.layers .chip:has(input:focus-visible){outline:2px solid var(--focus);outline-offset:1px}
+.layers .chip input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.layers .sw{width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px color-mix(in srgb,var(--h) 35%,transparent);flex:none;opacity:.35}
+.layers .chip:has(input:checked) .sw{opacity:1}
 .drawhint{left:50%;top:16px;transform:translateX(-50%);padding:8px 12px;font-size:13px;display:none;align-items:center;gap:10px}
 .drawhint.show{display:flex}
 .drawhint .sm2{height:28px;padding:0 10px;font-size:13px}
@@ -353,6 +374,7 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
   <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-9 8"/></symbol>
   <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18M6 12h12M10 19h4"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
 </svg>
 
@@ -495,20 +517,23 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
       <div class="mapwrap">
         <div id="map" role="img" aria-label="Map of hotspots in the selected area and month"></div>
         <div class="float layers" aria-label="Layers">
-          <label><input type="checkbox" id="lyHot" checked> Hotspots</label>
-          <div class="lysub" id="lyFilters">
+          <div class="lyrow">
+            <label><input type="checkbox" id="lyHot" checked> Hotspots</label>
+            <button type="button" class="lyfbtn" id="lyFBtn" aria-expanded="false" aria-controls="lyFilters" title="Filter hotspots by fire type and intensity"><svg class="i"><use href="#i-filter"/></svg>Filter<b id="lyFN"></b><svg class="i chev"><use href="#i-down"/></svg></button>
+          </div>
+          <div class="lysub" id="lyFilters" hidden>
             <div class="lyhead" id="lyFtHead">Fire type</div>
-            <div role="group" aria-labelledby="lyFtHead" style="display:contents">
-              <label title="Presumed vegetation fire: what the calendar counts"><input type="checkbox" data-ft="0" checked><span class="sw" style="--c:#FFB000;--h:#FF4D00"></span>Vegetation</label>
-              <label title="Detection on an active volcano"><input type="checkbox" data-ft="1"><span class="sw" style="--c:#FF6B6B;--h:#C92A2A"></span>Active volcano</label>
-              <label title="Persistent heat source: industry, gas flares, mines"><input type="checkbox" data-ft="2"><span class="sw" style="--c:#9775FA;--h:#5F3DC4"></span>Static land source</label>
-              <label title="Offshore detection, e.g. oil and gas platforms"><input type="checkbox" data-ft="3"><span class="sw" style="--c:#4DABF7;--h:#1864AB"></span>Offshore</label>
+            <div class="chips" role="group" aria-labelledby="lyFtHead">
+              <label class="chip" title="Presumed vegetation fire: what the calendar counts"><input type="checkbox" data-ft="0" checked><span class="sw" style="--c:#FFB000;--h:#FF4D00"></span>Vegetation</label>
+              <label class="chip" title="Detection on an active volcano"><input type="checkbox" data-ft="1"><span class="sw" style="--c:#FF6B6B;--h:#C92A2A"></span>Volcano</label>
+              <label class="chip" title="Static land source: persistent heat from industry, gas flares, mines"><input type="checkbox" data-ft="2"><span class="sw" style="--c:#9775FA;--h:#5F3DC4"></span>Industrial</label>
+              <label class="chip" title="Offshore detection, e.g. oil and gas platforms"><input type="checkbox" data-ft="3"><span class="sw" style="--c:#4DABF7;--h:#1864AB"></span>Offshore</label>
             </div>
-            <div class="lyhead" id="lyFrpHead" title="Fire Radiative Power, in megawatts">Intensity (FRP)</div>
-            <div role="group" aria-labelledby="lyFrpHead" style="display:contents">
-              <label><input type="checkbox" data-frp="lo" checked>Low<span class="frpn">&lt; 10 MW</span></label>
-              <label><input type="checkbox" data-frp="mid" checked>Moderate<span class="frpn">10–50 MW</span></label>
-              <label><input type="checkbox" data-frp="hi" checked>High<span class="frpn">≥ 50 MW</span></label>
+            <div class="lyhead" id="lyFrpHead" title="Fire Radiative Power, in megawatts">Intensity (FRP)<span>MW</span></div>
+            <div class="chips seg" role="group" aria-labelledby="lyFrpHead">
+              <label class="chip" title="Low: under 10 MW"><input type="checkbox" data-frp="lo" checked>&lt;10</label>
+              <label class="chip" title="Moderate: 10 to 50 MW"><input type="checkbox" data-frp="mid" checked>10–50</label>
+              <label class="chip" title="High: 50 MW or more"><input type="checkbox" data-frp="hi" checked>≥50</label>
             </div>
           </div>
           <label><input type="checkbox" id="lyArea" checked> Area outline</label>
@@ -733,13 +758,16 @@ function setTiles(){if(tiles)map.removeLayer(tiles);
   ]).addTo(map)}
 setTiles();
 const areaLayer=L.layerGroup().addTo(map),hotLayer=L.layerGroup().addTo(map);
-$('lyHot').onchange=e=>{e.target.checked?hotLayer.addTo(map):map.removeLayer(hotLayer);$('lyFilters').classList.toggle('off',!e.target.checked)};
+$('lyHot').onchange=e=>{e.target.checked?hotLayer.addTo(map):map.removeLayer(hotLayer);$('lyFilters').classList.toggle('off',!e.target.checked);$('lyFBtn').disabled=!e.target.checked};
 // FIRMS fire types: [core, halo]. NRT rows carry no type and come back as 0 (vegetation).
 const FT={0:['#FFB000','#FF4D00'],1:['#FF6B6B','#C92A2A'],2:['#9775FA','#5F3DC4'],3:['#4DABF7','#1864AB']};
 const lyTypes=()=>[...document.querySelectorAll('#lyFilters [data-ft]')].filter(i=>i.checked).map(i=>+i.dataset.ft);
 const lyFrp=()=>new Set([...document.querySelectorAll('#lyFilters [data-frp]')].filter(i=>i.checked).map(i=>i.dataset.frp));
 const frpBand=f=>f>=50?'hi':f>=10?'mid':'lo';
-document.querySelectorAll('#lyFilters input').forEach(i=>i.onchange=()=>{if(area)renderMap()});
+// Badge on the Filter button: how many choices differ from the default (vegetation only, every FRP band).
+const lyBadge=()=>{let n=0;document.querySelectorAll('#lyFilters input').forEach(i=>{if(i.checked!==(i.dataset.ft?i.dataset.ft==='0':true))n++});$('lyFN').textContent=n||''};
+document.querySelectorAll('#lyFilters input').forEach(i=>i.onchange=()=>{lyBadge();if(area)renderMap()});
+$('lyFBtn').onclick=e=>{const b=e.currentTarget,open=b.getAttribute('aria-expanded')!=='true';b.setAttribute('aria-expanded',open);$('lyFilters').hidden=!open};
 $('lyArea').onchange=e=>e.target.checked?areaLayer.addTo(map):map.removeLayer(areaLayer);
 const inside=(p,vs)=>{let x=p[1],y=p[0],ins=false;for(let i=0,j=vs.length-1;i<vs.length;j=i++){const xi=vs[i][1],yi=vs[i][0],xj=vs[j][1],yj=vs[j][0];if(((yi>y)!=(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))ins=!ins}return ins};
 let fitted=null;
