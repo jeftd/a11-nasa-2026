@@ -192,6 +192,7 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
   .field select{max-width:220px}
 }
 </style>
+<link rel="stylesheet" href="/fx.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -679,6 +680,7 @@ document.querySelector('.tabs').addEventListener('click',()=>setTimeout(()=>{if(
   new ResizeObserver(()=>{renderProf();renderAnnual();renderRange(val(area,sel.y,sel.m),base(area,sel.y,sel.m),classify(val(area,sel.y,sel.m),base(area,sel.y,sel.m)));map.invalidateSize()}).observe(document.querySelector('.stage'));
 })();
 </script>
+<script src="/fx.js"></script>
 <script src="/ember.js"></script>
 <script src="/assistant.js"></script>
 </body>

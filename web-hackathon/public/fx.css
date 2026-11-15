@@ -1,0 +1,145 @@
+/* Motion layer for the Burning Activity Calendar (fx.js drives the parts that need JS).
+   Everything here is decoration: the page works the same without it, and
+   prefers-reduced-motion turns it all off (bottom of the file). */
+
+:root{--fire-1:#FFB000;--fire-2:#F77F00;--fire-3:#E8590C;--fire-4:#E31A1C;--heat:0}
+:root[data-heat="above"]{--heat:.45}
+:root[data-heat="much"]{--heat:.75}
+:root[data-heat="record"]{--heat:1}
+
+/* ---------- first load: the shell settles in ---------- */
+.fx-intro .top{animation:fx-down .5s cubic-bezier(.2,.8,.2,1) both}
+.fx-intro .panel{animation:fx-right .6s .08s cubic-bezier(.2,.8,.2,1) both}
+.fx-intro .mapwrap{animation:fx-fadein .9s .15s ease both}
+.fx-intro .dock{animation:fx-up .6s .2s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fx-down{from{opacity:0;transform:translateY(-8px)}}
+@keyframes fx-right{from{opacity:0;transform:translateX(-12px)}}
+@keyframes fx-up{from{opacity:0;transform:translateY(10px)}}
+@keyframes fx-fadein{from{opacity:0}}
+
+/* ---------- top bar: a slow heat line under the header ---------- */
+.top{position:relative}
+.top::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;pointer-events:none;
+  background:linear-gradient(90deg,transparent 0%,var(--fire-1) 18%,var(--fire-2) 32%,var(--fire-4) 46%,transparent 60%,transparent 100%);
+  background-size:220% 100%;animation:fx-heatline 9s linear infinite;opacity:calc(.35 + var(--heat)*.5);transition:opacity .6s}
+@keyframes fx-heatline{from{background-position:120% 0}to{background-position:-100% 0}}
+
+/* brand mark: the nine ramp cells smoulder in sequence */
+.brand .mark i{animation:fx-smoulder 3.2s ease-in-out infinite}
+.brand .mark i:nth-child(1){animation-delay:0s}.brand .mark i:nth-child(2){animation-delay:.35s}.brand .mark i:nth-child(3){animation-delay:.7s}
+.brand .mark i:nth-child(4){animation-delay:1.05s}.brand .mark i:nth-child(5){animation-delay:1.4s}.brand .mark i:nth-child(6){animation-delay:1.75s}
+.brand .mark i:nth-child(7){animation-delay:2.1s}.brand .mark i:nth-child(8){animation-delay:2.45s}.brand .mark i:nth-child(9){animation-delay:2.8s}
+@keyframes fx-smoulder{0%,100%{filter:brightness(1)}45%{filter:brightness(1.35) saturate(1.2)}}
+
+/* ---------- buttons ---------- */
+.btn,.mgrid button,.typ button,.notable button,.ember-sugg button{transition:background-color .15s,box-shadow .2s,transform .15s,border-color .15s,opacity .15s}
+.btn:active:not(:disabled),.mgrid button:active,.typ button:active{transform:scale(.96)}
+.btn.ink:hover{opacity:1;box-shadow:0 0 0 3px color-mix(in srgb,var(--fire-2) 22%,transparent),0 8px 22px -8px var(--fire-3)}
+.ember-toggle:hover{border-color:color-mix(in srgb,var(--fire-2) 55%,var(--border));box-shadow:0 0 18px -6px var(--fire-2)}
+.mgrid button:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.mgrid button.peak{box-shadow:none}
+.mgrid button.peak::after{content:"";position:absolute;left:6px;right:6px;bottom:0;height:3px;border-radius:3px 3px 0 0;
+  background:linear-gradient(90deg,var(--fire-1),var(--warn),var(--fire-2),var(--warn));background-size:300% 100%;animation:fx-flame 2.4s ease-in-out infinite}
+@keyframes fx-flame{0%,100%{background-position:0 0;opacity:.85}50%{background-position:100% 0;opacity:1}}
+.typ button:hover{transform:translateY(-2px);z-index:1}
+
+/* ---------- inspector tabs: sliding ink ---------- */
+.tabs{position:relative}
+.fx-ink-on .tabs button[aria-selected="true"]{border-bottom-color:transparent}
+.tabs button{transition:color .2s}
+.tabs button:hover{color:var(--text-2)}
+.tab-ink{position:absolute;bottom:0;height:2px;border-radius:2px;pointer-events:none;
+  background:linear-gradient(90deg,var(--fire-1),var(--fire-3),var(--fire-4));
+  transition:left .35s cubic-bezier(.3,.9,.3,1),width .35s cubic-bezier(.3,.9,.3,1)}
+
+/* pane entering: children rise in one after another */
+.pane.fx-enter>*{animation:fx-rise .42s cubic-bezier(.2,.8,.2,1) both}
+.pane.fx-enter>*:nth-child(2){animation-delay:.04s}.pane.fx-enter>*:nth-child(3){animation-delay:.08s}
+.pane.fx-enter>*:nth-child(4){animation-delay:.12s}.pane.fx-enter>*:nth-child(5){animation-delay:.16s}
+.pane.fx-enter>*:nth-child(6){animation-delay:.2s}.pane.fx-enter>*:nth-child(n+7){animation-delay:.24s}
+@keyframes fx-rise{from{opacity:0;transform:translateY(8px)}}
+
+/* ---------- hero ---------- */
+#hero .fade{animation:none}
+#hero .fade>*{animation:fx-rise .32s cubic-bezier(.2,.8,.2,1) both}
+#hero .fade>*:nth-child(2){animation-delay:.03s}#hero .fade>*:nth-child(3){animation-delay:.06s}
+#hero .fade>*:nth-child(n+4){animation-delay:.09s}
+.fx-playing #hero .fade>*{animation:none}
+.big #bigN{display:inline-block;transition:text-shadow .6s}
+:root[data-heat="above"] .big #bigN,:root[data-heat="much"] .big #bigN,:root[data-heat="record"] .big #bigN{
+  animation:fx-glow 2.6s ease-in-out infinite}
+@keyframes fx-glow{
+  0%,100%{text-shadow:0 0 calc(10px + 16px*var(--heat)) color-mix(in srgb,var(--fire-2) calc(18% + 30%*var(--heat)),transparent)}
+  50%{text-shadow:0 0 calc(16px + 24px*var(--heat)) color-mix(in srgb,var(--fire-3) calc(28% + 34%*var(--heat)),transparent)}}
+.cat{position:relative;overflow:hidden}
+:root[data-heat="much"] #hero .cat::after,:root[data-heat="record"] #hero .cat::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.45) 50%,transparent 65%);background-size:250% 100%;animation:fx-sheen 3.4s ease-in-out infinite}
+@keyframes fx-sheen{0%{background-position:130% 0}55%,100%{background-position:-60% 0}}
+:root[data-heat="record"] #hero .cat{animation:fx-pulse-ring 2.2s ease-out infinite}
+@keyframes fx-pulse-ring{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--fire-4) 45%,transparent)}70%,100%{box-shadow:0 0 0 10px transparent}}
+#hero .alert svg{animation:fx-flicker 1.8s ease-in-out infinite}
+@keyframes fx-flicker{0%,100%{opacity:1}40%{opacity:.55}55%{opacity:.9}70%{opacity:.65}}
+#range circle{transition:cx .35s cubic-bezier(.3,.9,.3,1)}
+
+/* ---------- map: warm breath at the bottom edge + legend dot ---------- */
+.mapwrap::after{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;pointer-events:none;z-index:440;
+  background:radial-gradient(120% 100% at 50% 110%,color-mix(in srgb,var(--fire-3) 30%,transparent),transparent 70%);
+  opacity:calc(.12 + var(--heat)*.45);animation:fx-breathe 6s ease-in-out infinite;transition:opacity .8s}
+:root[data-theme="dark"] .mapwrap::after{opacity:calc(.25 + var(--heat)*.55)}
+@keyframes fx-breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.12)}}
+.mapwrap::after{transform-origin:50% 100%}
+.fx-canvas{position:absolute;inset:0;z-index:450;pointer-events:none}
+.dotg{animation:fx-dot 1.6s ease-in-out infinite}
+@keyframes fx-dot{0%,100%{box-shadow:0 0 0 3px rgba(255,77,0,.35)}50%{box-shadow:0 0 0 5px rgba(255,77,0,.18),0 0 10px 2px rgba(255,176,0,.5)}}
+
+/* ---------- timeline ---------- */
+.stripes .cursor{background:var(--fire-3);transition:left .12s,box-shadow .3s}
+.stripes .cursor::after{background:var(--fire-3);animation:fx-knob 2s ease-out infinite}
+@keyframes fx-knob{0%{box-shadow:0 0 0 3px var(--surface),0 0 0 3px color-mix(in srgb,var(--fire-2) 55%,transparent)}
+  80%,100%{box-shadow:0 0 0 3px var(--surface),0 0 0 11px transparent}}
+.fx-playing .stripes .cursor{box-shadow:-10px 0 14px -2px color-mix(in srgb,var(--fire-2) 70%,transparent)}
+.fx-playing #play{color:var(--fire-3);border-color:color-mix(in srgb,var(--fire-2) 60%,var(--border))}
+.stripes .bars i{transition:filter .15s}
+.stripes .bars i:hover{filter:brightness(1.25) saturate(1.2)}
+.fx-grow .stripes .bars i{animation:fx-bar .5s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*1.6ms);transform-origin:50% 100%}
+@keyframes fx-bar{from{transform:scaleY(0);opacity:0}}
+
+/* ---------- dock charts ---------- */
+.fx-grow #annual rect[data-year]{animation:fx-bar .6s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i,0)*18ms);transform-box:fill-box;transform-origin:50% 100%}
+#annual rect[data-year]{transition:opacity .15s}
+#annual rect[data-year]:hover{opacity:.75}
+#annual rect[fill="#E8590C"]{filter:drop-shadow(0 0 4px rgba(232,89,12,.55))}
+.fx-grow #prof .fx-line{stroke-dasharray:1;stroke-dashoffset:1;animation:fx-draw .9s .1s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes fx-draw{to{stroke-dashoffset:0}}
+#prof .fx-pulse{fill:none;stroke:#E8590C;stroke-width:2;transform-box:fill-box;transform-origin:center;animation:fx-ping 1.8s ease-out infinite;pointer-events:none}
+@keyframes fx-ping{0%{transform:scale(1);opacity:.7}100%{transform:scale(3);opacity:0}}
+
+/* ---------- season heatmap ---------- */
+.heat .c:not(.future){transition:transform .12s,box-shadow .12s}
+.heat .c:not(.future):hover{transform:scale(1.35);z-index:2;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.25),0 0 0 1px var(--surface)}
+.heat.fx-wave .c,.heat.fx-wave .typrow{animation:fx-cell .45s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--d,0)*1ms)}
+@keyframes fx-cell{from{opacity:0;transform:scale(.4)}}
+
+/* ---------- burn calendar ---------- */
+.result{transition:background-color .3s}
+.result.fx-bump .k{animation:fx-bump .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes fx-bump{30%{transform:scale(1.08);color:var(--fire-3)}}
+.result .k{display:inline-block;transform-origin:left center}
+.fx-spark{position:fixed;z-index:4000;width:5px;height:5px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,#FFF1C2 0,var(--fire-1) 40%,var(--fire-3) 75%,transparent 76%)}
+
+/* ---------- dark-mode switch: circular reveal (View Transitions) ---------- */
+::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
+::view-transition-new(root){z-index:9999}
+
+/* ---------- reduced motion: no decoration at all ---------- */
+@media (prefers-reduced-motion:reduce){
+  .top::after,.brand .mark i,.mgrid button.peak::after,.big #bigN,#hero .cat,#hero .cat::after,#hero .alert svg,
+  .mapwrap::after,.dotg,.stripes .cursor::after,#prof .fx-pulse,
+  .pane.fx-enter>*,#hero .fade>*,.fx-intro .top,.fx-intro .panel,.fx-intro .mapwrap,.fx-intro .dock,
+  .fx-grow .stripes .bars i,.fx-grow #annual rect[data-year],.heat.fx-wave .c,.heat.fx-wave .typrow,.result.fx-bump .k{animation:none!important}
+  .fx-grow #prof .fx-line{animation:none;stroke-dasharray:none;stroke-dashoffset:0}
+  #prof .fx-pulse{display:none}
+  .tab-ink,#range circle{transition:none}
+  .btn:active,.mgrid button:active,.typ button:active,.mgrid button:hover,.typ button:hover,.heat .c:hover{transform:none}
+}

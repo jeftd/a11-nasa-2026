@@ -25,6 +25,7 @@ The browser never sees the n8n URL, the secret, or the model credentials.
 | `harmonized.js` | `/` | Loads the series from `/api/harmonized/` (fallback `data/harmonized/`) and converts it for the calendar (the only code that knows the format) |
 | `data/harmonized/` | `/` | Fake series used when there is no database, see `DATA_CONTRACT.md` |
 | `assistant.js`, `assistant.css` | `/` | Ember assistant sidebar (below) |
+| `fx.js`, `fx.css` | `/` | Motion layer: ember glow and sparks over the map hotspots, heat line, tab ink, chart and heatmap entrances, dark-mode reveal (all off with reduced motion) |
 | `ember.js` | both | Ember mascot expression engine (gestures, blinking, eye-follow) |
 | `status.html`, `app.js`, `styles.css` | `/status.html` | Original placeholder with server/assistant status and the old floating chat |
 
