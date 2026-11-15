@@ -925,7 +925,7 @@ function renderStripes(){
 function placeCursor(){const i=idx(sel.y,sel.m);
   if(i<V0||i>=V0+SPAN){setView(i);renderStripes()} // keep the selected month in view
   $('cursor').style.left=`calc(${pos(i+.5)}% - 1px)`;$('stripes').setAttribute('aria-valuenow',i);$('stripes').setAttribute('aria-valuetext',`${FULL[sel.m]} ${sel.y}`);
-  $('nowLabel').innerHTML=`${FULL[sel.m]} ${sel.y}<small>${isPartial(sel.y,sel.m)?'in progress':sel.y===CY&&sel.m===NOW_M-1?'last full month':'&nbsp;'}</small>`;updateHops()}
+  {const back=idx(CY,NOW_M)-idx(sel.y,sel.m),note=!back?'in progress':back===1?'last full month':back<24?`${back} months ago`:`${Math.floor(back/12)} years ago`;$('nowLabel').innerHTML=`${FULL[sel.m]} ${sel.y}${note?`<small>${note}</small>`:''}`}updateHops()}
 function fromX(cx){const r=$('stripes').getBoundingClientRect(),i=Math.max(0,Math.min(TOTAL-1,V0+Math.floor((cx-r.left)/r.width*SPAN)));return{y:Y0+Math.floor(i/12),m:i%12}}
 // Previous / next month with at least one hotspot in the area.
 function fireHop(dir){for(let i=idx(sel.y,sel.m)+dir;i>=0&&i<TOTAL;i+=dir){const {y,m}=ymOf(i);if((val(area,y,m)||0)>0)return i}return null}
