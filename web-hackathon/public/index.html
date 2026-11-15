@@ -385,7 +385,7 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
       <section class="pane" id="p-burn" role="tabpanel" hidden>
         <div class="eyebrow">Agricultural burning calendar</div>
         <p class="sentence" style="margin-top:4px">Choose the months you plan to <b>allow</b> agricultural burns. We show how much past fire activity falls in them.</p>
-        <p class="law">Municipalities set this calendar every year under <a href="https://www.dof.gob.mx/nota_detalle.php?codigo=5710189&fecha=01/12/2023" target="_blank" rel="noopener">NOM-015-SEMARNAT-AGRICULTURA-2023 §5</a>.</p>
+        <p class="law" id="burnLaw"></p>
         <p class="mcap">% = share of a typical year's hotspots in that month.</p>
         <div class="mgrid" id="mgrid" style="margin-top:8px"></div>
         <div class="result" id="burnOut"></div>
@@ -890,7 +890,12 @@ function renderHeat(){
 }
 
 /* ================= burn tab ================= */
+// Who sets the burn calendar depends on the country the area is in.
+const BURN_LAW={
+  mx:'Municipalities set this calendar every year under <a href="https://www.dof.gob.mx/nota_detalle.php?codigo=5710189&fecha=01/12/2023" target="_blank" rel="noopener">NOM-015-SEMARNAT-AGRICULTURA-2023 §5</a>.',
+  us:'In the U.S., burn seasons, permits and burn bans are set by each state\'s forestry agency and by local fire authorities.'};
 function renderBurn(){
+  const law=BURN_LAW[areaCountry(area)];$('burnLaw').hidden=!law;$('burnLaw').innerHTML=law||'';
   const mean=MONTHS.map((_,m)=>{let s=0;for(let y=Y0;y<=Y1;y++)s+=area.d[y][m];return s/(Y1-Y0+1)}),tot=mean.reduce((a,b)=>a+b,0)||1,peak=mean.indexOf(Math.max(...mean));
   $('mgrid').innerHTML=MONTHS.map((m,i)=>`<button class="${allowed.has(i)?'allow':''} ${i===peak?'peak':''}" data-m="${i}" aria-pressed="${allowed.has(i)}">${allowed.has(i)?`<svg class="i ck"><use href="#i-check"/></svg>`:''}${m}<small>${Math.round(100*mean[i]/tot)}%${i===peak?' · <span class="pk">peak</span>':''}</small></button>`).join('');
   $('mgrid').querySelectorAll('button').forEach(b=>b.onclick=()=>{const m=+b.dataset.m;allowed.has(m)?allowed.delete(m):allowed.add(m);renderBurn()});
