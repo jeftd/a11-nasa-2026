@@ -78,9 +78,9 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .spacer{flex:1}
 .main{display:grid;grid-template-columns:400px minmax(0,1fr);min-height:0}
 .panel{border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;min-height:0;min-width:0;container:insp/inline-size}
-.tabs{display:flex;gap:0;padding:0 10px;border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none}
+.tabs{display:flex;gap:0;padding:0 8px;border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
-.tabs button{white-space:nowrap;flex:none;border:0;background:none;padding:12px 7px;font-size:13.5px;color:var(--text-3);font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button{white-space:nowrap;flex:1 0 auto;border:0;background:none;padding:12px 6px;font-size:14px;color:var(--text-3);font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--text)}
 .pane{padding:24px;overflow:auto;flex:1;min-height:0}
 .pane[hidden]{display:none}
@@ -98,6 +98,10 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 .layers input{accent-color:var(--text)}
 .drawhint{left:50%;top:16px;transform:translateX(-50%);padding:8px 12px;font-size:13px;display:none;align-items:center;gap:10px}
 .drawhint.show{display:flex}
+.drawhint .sm2{height:28px;padding:0 10px;font-size:13px}
+.drawhint .sm2[disabled]{opacity:.4;cursor:default}
+.drawhint:not(.drawing) .sm2{display:none}
+.drawhint>span{white-space:nowrap}
 .leaflet-container{font:inherit;background:var(--surface-2)}
 .leaflet-control-zoom{border:1px solid var(--border)!important;border-radius:8px!important;overflow:hidden;box-shadow:var(--shadow)!important}
 .leaflet-control-zoom a{background:var(--surface)!important;color:var(--text)!important;border-color:var(--border)!important}
@@ -106,8 +110,16 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 
 /* ---------- dock ---------- */
 .dock{border-top:1px solid var(--border);background:var(--surface);padding:12px 16px 16px}
-.tl{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:12px;align-items:center}
-.tl .now{font-weight:600;min-width:132px}
+.tl{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:12px;align-items:center}
+.tl .hop{display:flex;align-items:center;gap:4px}
+.btn.icon.sm{width:28px;height:28px;border-radius:6px}
+.btn.icon.sm[disabled]{opacity:.35;cursor:default}
+.tl .zoom{display:flex;align-items:center;gap:4px}
+@media (max-width:900px){.tl{grid-template-columns:auto 1fr auto;row-gap:8px}.tl .hop{justify-self:center}.tl .stripes{grid-column:1/-1;order:5}}
+.tl .zoom .zl{min-width:34px;text-align:center;font-size:12px;color:var(--text-2);font-weight:500}
+.stripes .bars i.off{opacity:.25}
+.stripes .yrs span.mo{color:var(--text-3);font-size:11px}
+.tl .now{font-weight:600;min-width:120px;text-align:center}
 .tl .now small{display:block;font-weight:400;color:var(--text-3);font-size:12px;line-height:14px}
 .stripes{position:relative;height:44px;cursor:pointer;touch-action:none}
 .stripes .bars{position:absolute;left:0;right:0;top:0;height:24px;display:flex;border-radius:4px;overflow:hidden;background:var(--surface-2)}
@@ -182,7 +194,7 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke
 /* Narrow inspector (e.g. with the Ember panel open): tighten so nothing overflows. */
 @container insp (max-width:380px){
   .pane{padding:20px 16px}
-  .tabs{padding:0 8px;gap:0}.tabs button{padding:12px 7px;font-size:13px}
+  .tabs{padding:0 4px;gap:0}.tabs button{padding:12px 4px;font-size:12.5px}
   .heat{grid-template-columns:34px repeat(12,1fr)}.heat .y{padding-right:6px}.heat .h{font-size:11px}
   .heat .typrow{font-size:10px}
   .seg button{padding:0 8px;font-size:13px}
@@ -288,6 +300,9 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-newchat" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></symbol>
   <symbol id="i-panel-close" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18M8 10l2 2-2 2"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/><path d="M6 6v12"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/><path d="M18 6v12"/></symbol>
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
   <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-9 8"/></symbol>
   <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></symbol>
@@ -445,14 +460,26 @@ code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
           <p class="cerr" id="cErr" role="alert"></p>
           <div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" id="cCancel">Cancel</button><button type="submit" class="btn ink">Show this area</button></div>
         </form>
-        <div class="float drawhint" id="drawhint"><svg class="i"><use href="#i-pen"/></svg><span>Click to add points · double-click to finish</span><button class="btn icon" id="drawCancel" aria-label="Cancel drawing" style="height:28px;width:28px"><svg class="i"><use href="#i-x"/></svg></button></div>
+        <div class="float drawhint" id="drawhint" role="status"><svg class="i"><use href="#i-pen"/></svg><span>Click on the map to place the first point</span>
+          <button class="btn sm2" id="drawUndo" title="Undo the last point (Backspace)">Undo</button>
+          <button class="btn ink sm2" id="drawDone" title="Close the shape (Enter)">Finish</button>
+          <button class="btn icon" id="drawCancel" aria-label="Cancel drawing" title="Cancel (Esc)" style="height:28px;width:28px"><svg class="i"><use href="#i-x"/></svg></button></div>
       </div>
       <div class="dock">
         <div class="tl">
           <button class="btn icon" id="play" aria-label="Play through time"><svg class="i"><use href="#i-play"/></svg></button>
-          <div class="now" id="nowLabel"></div>
+          <div class="hop">
+            <button class="btn icon sm" id="prevFire" aria-label="Previous month with hotspots" title="Previous month with hotspots (Shift + ←)"><svg class="i"><use href="#i-prev"/></svg></button>
+            <div class="now" id="nowLabel"></div>
+            <button class="btn icon sm" id="nextFire" aria-label="Next month with hotspots" title="Next month with hotspots (Shift + →)"><svg class="i"><use href="#i-next"/></svg></button>
+          </div>
           <div class="stripes" id="stripes" tabindex="0" role="slider" aria-label="Month" aria-valuemin="0">
             <div class="bars" id="bars"></div><div class="yrs" id="yrs"></div><div class="era" id="era"></div><div class="rband" id="rband" title="Date range of the Report tab"></div><div class="cursor" id="cursor"></div>
+          <div class="zoom" role="group" aria-label="Timeline zoom">
+            <button class="btn icon sm" id="zoomOut" aria-label="Zoom out the timeline" title="Zoom out (or scroll on the timeline)"><svg class="i"><use href="#i-minus"/></svg></button>
+            <span class="zl" id="zoomLabel">All</span>
+            <button class="btn icon sm" id="zoomIn" aria-label="Zoom in the timeline" title="Zoom in (or scroll on the timeline; Shift + scroll pans)"><svg class="i"><use href="#i-plus"/></svg></button>
+          </div>
           </div>
         </div>
         <div class="charts">
@@ -676,16 +703,48 @@ function scatterDots(v,b){const r=rng(sel.y*12+sel.m+area.id.length*7),n=Math.mi
     L.circleMarker(p,{radius:2.4,stroke:false,fillColor:'#FFB000',fillOpacity:1,interactive:false}).addTo(hotLayer)}}
 
 /* ================= draw area ================= */
+// Click to place points (each one shows as a dot), a dashed preview follows the pointer and closes back to the first
+// point. Finish by clicking the first point, pressing Enter, double-clicking or "Finish". Backspace undoes, Esc cancels.
 let drawing=null;
-$('draw').onclick=()=>{drawing={pts:[],line:L.polyline([],{color:css('--text'),weight:2,dashArray:'4 4'}).addTo(map)};$('drawhint').classList.add('show');map.getContainer().style.cursor='crosshair'};
-$('drawCancel').onclick=()=>endDraw();
-function endDraw(){if(drawing){map.removeLayer(drawing.line);drawing=null}$('drawhint').classList.remove('show');map.getContainer().style.cursor=''}
-map.on('click',e=>{if(!drawing)return;drawing.pts.push([e.latlng.lat,e.latlng.lng]);drawing.line.setLatLngs(drawing.pts)});
-map.on('dblclick',()=>{if(!drawing||drawing.pts.length<3)return;
-  const pts=drawing.pts,km2=Math.abs(pts.reduce((s,p,i)=>{const q2=pts[(i+1)%pts.length];return s+(p[1]*q2[0]-q2[1]*p[0])},0)/2)*111*111*Math.cos(pts[0][0]*Math.PI/180);
+const SNAP=14; // px: a click this close to the first point closes the shape
+function startDraw(){endDraw();openCoord(false);
+  drawing={pts:[],mouse:null,layer:L.layerGroup().addTo(map)};
+  map.getContainer().style.cursor='crosshair';$('drawhint').classList.add('show','drawing');renderDraw()}
+function endDraw(){if(drawing){map.removeLayer(drawing.layer);drawing=null}$('drawhint').classList.remove('show','drawing');map.getContainer().style.cursor='';
+  $('drawhint').querySelector('span').textContent=drawHintText}
+const nearFirst=ll=>drawing&&drawing.pts.length>=3&&map.latLngToContainerPoint(drawing.pts[0]).distanceTo(map.latLngToContainerPoint(ll))<=SNAP;
+function renderDraw(){if(!drawing)return;const d=drawing,ink=css('--text'),n=d.pts.length,snap=d.mouse&&nearFirst(d.mouse);
+  d.layer.clearLayers();
+  if(n>=2||(n>=1&&d.mouse)){const ring=d.mouse&&!snap?[...d.pts,[d.mouse.lat,d.mouse.lng]]:[...d.pts];
+    if(ring.length>=3)L.polygon(ring,{stroke:false,fill:true,fillColor:ink,fillOpacity:.06,interactive:false}).addTo(d.layer);
+    L.polyline(d.pts,{color:ink,weight:2.5,interactive:false}).addTo(d.layer);
+    if(d.mouse&&!snap)L.polyline([d.pts[n-1],[d.mouse.lat,d.mouse.lng]],{color:ink,weight:2,dashArray:'5 5',interactive:false}).addTo(d.layer);
+    if(ring.length>=3)L.polyline([ring[ring.length-1],d.pts[0]],{color:ink,weight:1.5,dashArray:'2 6',opacity:.7,interactive:false}).addTo(d.layer)}
+  d.pts.forEach((p,i)=>L.circleMarker(p,{radius:i===0?(n>=3?(snap?9:7):6):4.5,color:ink,weight:2,fillColor:i===0&&n>=3?'#E8590C':css('--surface'),fillOpacity:1,interactive:false}).addTo(d.layer));
+  map.getContainer().style.cursor=snap?'pointer':'crosshair';
+  $('drawhint').querySelector('span').textContent=!n?'Click on the map to place the first point':n<3?`Point ${n} placed · keep clicking to outline your area`:
+    snap?'Click to close the shape':`${n} points · click the first point (orange) or press Enter to finish`;
+  $('drawUndo').disabled=!n;$('drawDone').disabled=n<3}
+function addPoint(ll){const d=drawing,last=d.pts[d.pts.length-1];
+  if(last&&map.latLngToContainerPoint(last).distanceTo(map.latLngToContainerPoint(ll))<4)return; // double-click sends two clicks
+  if(d.pts.length>=200)return;d.pts.push([ll.lat,ll.lng]);renderDraw()}
+function finishDraw(){if(!drawing||drawing.pts.length<3)return;const pts=drawing.pts.map(p=>[+p[0].toFixed(5),+p[1].toFixed(5)]);
+  const km2=Math.abs(pts.reduce((s,p,i)=>{const q2=pts[(i+1)%pts.length];return s+(p[1]*q2[0]-q2[1]*p[0])},0)/2)*111*111*Math.cos(pts[0][0]*Math.PI/180);
   endDraw();$('drawhint').classList.add('show');$('drawhint').querySelector('span').textContent='Counting fires in your area…';
-  addDrawn(pts,km2).finally(()=>{$('drawhint').classList.remove('show');$('drawhint').querySelector('span').textContent=drawHintText})});
-const drawHintText=$('drawhint').querySelector('span').textContent;
+  ['drawUndo','drawDone'].forEach(i=>$(i).disabled=true);
+  addDrawn(pts,km2).finally(()=>{$('drawhint').classList.remove('show');$('drawhint').querySelector('span').textContent=drawHintText})}
+$('draw').onclick=()=>drawing?endDraw():startDraw();
+$('drawCancel').onclick=()=>endDraw();
+$('drawUndo').onclick=()=>{if(drawing){drawing.pts.pop();renderDraw()}};
+$('drawDone').onclick=()=>finishDraw();
+map.on('click',e=>{if(!drawing)return;if(nearFirst(e.latlng))finishDraw();else addPoint(e.latlng)});
+map.on('dblclick',()=>{if(drawing)finishDraw()});
+map.on('mousemove',e=>{if(drawing){drawing.mouse=e.latlng;renderDraw()}});
+map.on('mouseout',()=>{if(drawing){drawing.mouse=null;renderDraw()}});
+document.addEventListener('keydown',e=>{if(!drawing||e.target.closest('input,textarea,select'))return;
+  if(e.key==='Escape'){e.preventDefault();endDraw()}else if(e.key==='Enter'){e.preventDefault();finishDraw()}
+  else if(e.key==='Backspace'||(e.key==='z'&&(e.ctrlKey||e.metaKey))){e.preventDefault();drawing.pts.pop();renderDraw()}});
+const drawHintText='Click on the map to place the first point';
 
 /* ================= area from coordinates ================= */
 function openCoord(open){$('coord').hidden=!open;$('coordBtn').setAttribute('aria-expanded',open);$('cErr').textContent='';if(open){endDraw();$('cLat').focus()}}
@@ -749,12 +808,29 @@ function renderRange(v,b,c){
   b.forEach(n=>h+=`<line x1="${x(n)}" x2="${x(n)}" y1="17" y2="31" stroke="var(--text-3)" stroke-width="1.5" opacity=".8"/>`);
   const col=CATS[c.k].c();
   h+=`<circle cx="${x(v)}" cy="24" r="8" fill="${c.k==='normal'||c.k==='low'?'var(--text)':col}" stroke="var(--surface)" stroke-width="3"/>`;
-  h+=`<text x="${pad}" y="56">lowest ${Math.min(...b)}</text><text x="${(x(t1)+x(t2))/2}" y="10" text-anchor="middle">normal range</text>`;
-  const nx=x(v),anchor=nx>W*0.7?'end':nx<W*0.3?'start':'middle';
-  h+=`<text x="${nx}" y="56" text-anchor="${anchor}" style="fill:var(--text);font-weight:600">${sel.y}: ${v.toLocaleString()}</text>`;
-  if(nx<W*0.7)h+=`<text x="${W-pad}" y="56" text-anchor="end">highest ${Math.max(...b)}</text>`;
+  const mn=Math.min(...b),mx=Math.max(...b);
+  // Top row: the "normal range" caption over the band. Bottom row: this year's value under its dot, then the extremes.
+  // placeLabels keeps every label inside the chart and drops the less important one when two would overlap.
+  h+=placeLabels(W,pad,10,[{t:'normal range',x:(x(t1)+x(t2))/2}]);
+  h+=placeLabels(W,pad,56,[
+    {t:`${sel.y}: ${v.toLocaleString()}${v<mn?' · lowest':v>mx?' · highest':''}`,x:x(v),bold:true},
+    {t:`lowest ${mn.toLocaleString()}`,x:pad,align:'start'},
+    {t:`highest ${mx.toLocaleString()}`,x:W-pad,align:'end'}]);
   svg.innerHTML=h;
 }
+// SVG text labels on one row, in priority order: each is measured, clamped inside [pad, W-pad] and skipped if it would
+// overlap one already placed. align: 'middle' (default, centred on x), 'start' or 'end'.
+const _measure=document.createElement('canvas').getContext('2d');
+function textW(t,bold,size=12){_measure.font=`${bold?600:400} ${size}px Inter,system-ui,sans-serif`;return _measure.measureText(t).width*1.06+1} // +6%: Inter may still be loading
+// Left margin of a chart so its largest y-axis label (e.g. "11.8k") fits.
+const axisL=mx=>Math.max(36,Math.ceil(textW(mx>=1000?Math.round(mx/100)/10+'k':String(Math.round(mx)))+10));
+function placeLabels(W,pad,y,labels,size=12,gap=8,padR=pad){
+  const placed=[];let out='';
+  for(const l of labels){const w=textW(l.t,l.bold,size);let x0=l.align==='start'?l.x:l.align==='end'?l.x-w:l.x-w/2;
+    x0=Math.max(pad,Math.min(W-padR-w,x0));const x1=x0+w;
+    if(placed.some(([a,b2])=>x0<b2+gap&&x1>a-gap))continue;placed.push([x0,x1]);
+    out+=`<text x="${x0.toFixed(1)}" y="${y}"${l.bold?' style="fill:var(--text);font-weight:600"':''}>${l.t}</text>`}
+  return out}
 function renderNext(){
   const nm=(sel.m+1)%12,full=m=>{const o=[];for(let y=Y0;y<=Y1;y++)o.push(area.d[y][m]);return o};
   const nmed=median(full(nm)),tmed=median(full(sel.m)),dir=nmed>tmed*1.15?'rises':nmed<tmed*.85?'falls':'stays about the same';
@@ -819,22 +895,58 @@ function renderBurn(){
 }
 
 /* ================= dock: timeline ================= */
-const idx=(y,m)=>(y-Y0)*12+m;let TOTAL;
+// The strip shows a window of months [V0, V0+SPAN) of the whole record; zoom changes SPAN, the window follows the selection.
+const idx=(y,m)=>(y-Y0)*12+m;let TOTAL,SPAN=0,V0=0;
+const ZOOMS=[0,240,120,60,24,12];let zoomI=0; // 0 = whole record
+const zoomName=n=>!n?'All':n>=24?`${n/12} y`:`${n} mo`;
+const pos=i=>100*(i-V0)/SPAN; // % from the left edge of the strip
+function setView(center){SPAN=ZOOMS[zoomI]&&ZOOMS[zoomI]<TOTAL?ZOOMS[zoomI]:TOTAL;
+  V0=SPAN>=TOTAL?0:Math.max(0,Math.min(TOTAL-SPAN,Math.round(center-SPAN/2)));
+  $('zoomLabel').textContent=zoomName(SPAN>=TOTAL?0:SPAN);$('zoomOut').disabled=zoomI===0;$('zoomIn').disabled=zoomI===ZOOMS.length-1}
+function zoomTo(i,center){zoomI=Math.max(0,Math.min(ZOOMS.length-1,i));setView(center??idx(sel.y,sel.m));renderStripes();placeCursor();placeRange()}
+$('zoomIn').onclick=()=>zoomTo(zoomI+1);
+$('zoomOut').onclick=()=>zoomTo(zoomI-1);
 function renderStripes(){
-  let h='';for(let i=0;i<TOTAL;i++){const y=Y0+Math.floor(i/12),m=i%12,c=catOf(area,y,m);h+=`<i style="background:${anomColor(c.k)}" data-tip="${FULL[m]} ${y} · ${CATS[c.k].l}"></i>`}
+  if(!SPAN)setView(idx(sel.y,sel.m));
+  let h='';for(let i=V0;i<V0+SPAN;i++){const y=Y0+Math.floor(i/12),m=i%12,c=catOf(area,y,m),v=val(area,y,m);
+    h+=`<i style="background:${anomColor(c.k)}" data-tip="${FULL[m]} ${y} · ${(v??0).toLocaleString()} hotspots · ${CATS[c.k].l}"></i>`}
   $('bars').innerHTML=h;
-  let yh='';for(let y=Y0;y<=CY;y+=5)yh+=`<span class="${100*idx(y,0)/TOTAL>92?'end':''}" style="left:${100*idx(y,0)/TOTAL}%">${y}</span>`;$('yrs').innerHTML=yh;
-  $('era').style.left='0';$('era').style.width=(100*idx(ERA_END+1,0)/TOTAL)+'%';$('era').title='MODIS era, adjusted to VIIRS';
-  $('stripes').setAttribute('aria-valuemax',TOTAL-1);
-}
-function placeCursor(){const i=idx(sel.y,sel.m);$('cursor').style.left=`calc(${100*(i+.5)/TOTAL}% - 1px)`;$('stripes').setAttribute('aria-valuenow',i);$('stripes').setAttribute('aria-valuetext',`${FULL[sel.m]} ${sel.y}`);
-  $('nowLabel').innerHTML=`${FULL[sel.m]} ${sel.y}<small>${isPartial(sel.y,sel.m)?'in progress':sel.y===CY&&sel.m===NOW_M-1?'last full month':'&nbsp;'}</small>`}
-function fromX(cx){const r=$('stripes').getBoundingClientRect(),i=Math.max(0,Math.min(TOTAL-1,Math.floor((cx-r.left)/r.width*TOTAL)));return{y:Y0+Math.floor(i/12),m:i%12}}
+  // Labels: years (every 5, 2 or 1 depending on zoom) and month initials when zoomed to two years or less.
+  const step=SPAN>180?5:SPAN>72?2:1,lab=[];
+  // Zoomed in and starting mid-year: name that year at the left edge (and leave room for it).
+  const lead=SPAN<TOTAL&&V0%12!==0&&(12-V0%12)/SPAN>.06,skip=lead?Math.max(2,Math.ceil(SPAN*.07)):0;
+  if(lead)lab.push(`<span style="left:0;transform:none">${Y0+Math.floor(V0/12)}</span>`);
+  for(let i=V0;i<V0+SPAN;i++){const y=Y0+Math.floor(i/12),m=i%12;
+    if(m===0&&(y-Y0)%step===0)lab.push(`<span class="${pos(i)>92?'end':''}" style="left:${pos(i)}%">${y}</span>`);
+    else if(SPAN<=24&&m%(SPAN<=12?1:3)===0&&i-V0>=skip)lab.push(`<span class="mo" style="left:${pos(i+.5)}%">${MONTHS[m][0]}</span>`)}
+  $('yrs').innerHTML=lab.join('');
+  const eraEnd=Math.min(V0+SPAN,idx(ERA_END+1,0));$('era').style.left='0';$('era').style.width=eraEnd>V0?`${pos(eraEnd)}%`:'0';$('era').title='MODIS era, adjusted to VIIRS';
+  $('stripes').setAttribute('aria-valuemax',TOTAL-1);updateHops()}
+function placeCursor(){const i=idx(sel.y,sel.m);
+  if(i<V0||i>=V0+SPAN){setView(i);renderStripes()} // keep the selected month in view
+  $('cursor').style.left=`calc(${pos(i+.5)}% - 1px)`;$('stripes').setAttribute('aria-valuenow',i);$('stripes').setAttribute('aria-valuetext',`${FULL[sel.m]} ${sel.y}`);
+  $('nowLabel').innerHTML=`${FULL[sel.m]} ${sel.y}<small>${isPartial(sel.y,sel.m)?'in progress':sel.y===CY&&sel.m===NOW_M-1?'last full month':'&nbsp;'}</small>`;updateHops()}
+function fromX(cx){const r=$('stripes').getBoundingClientRect(),i=Math.max(0,Math.min(TOTAL-1,V0+Math.floor((cx-r.left)/r.width*SPAN)));return{y:Y0+Math.floor(i/12),m:i%12}}
+// Previous / next month with at least one hotspot in the area.
+function fireHop(dir){for(let i=idx(sel.y,sel.m)+dir;i>=0&&i<TOTAL;i+=dir){const {y,m}=ymOf(i);if((val(area,y,m)||0)>0)return i}return null}
+function updateHops(){if(!area)return;$('prevFire').disabled=fireHop(-1)==null;$('nextFire').disabled=fireHop(1)==null}
+function hop(dir){const i=fireHop(dir);if(i!=null){const {y,m}=ymOf(i);select(y,m)}}
+$('prevFire').onclick=()=>hop(-1);
+$('nextFire').onclick=()=>hop(1);
 let dragging=false;
 $('stripes').addEventListener('pointerdown',e=>{dragging=true;$('stripes').setPointerCapture(e.pointerId);const p=fromX(e.clientX);select(p.y,p.m)});
 $('stripes').addEventListener('pointermove',e=>{if(!dragging)return;const p=fromX(e.clientX);if(p.y!==sel.y||p.m!==sel.m)select(p.y,p.m)});
 $('stripes').addEventListener('pointerup',()=>dragging=false);
-$('stripes').addEventListener('keydown',e=>{let i=idx(sel.y,sel.m);if(e.key==='ArrowLeft')i--;else if(e.key==='ArrowRight')i++;else if(e.key==='ArrowUp')i+=12;else if(e.key==='ArrowDown')i-=12;else return;
+// Wheel zooms around the pointer; Shift + wheel (or a sideways trackpad swipe) pans the window.
+$('stripes').addEventListener('wheel',e=>{e.preventDefault();const r=$('stripes').getBoundingClientRect(),at=V0+(e.clientX-r.left)/r.width*SPAN;
+  if(e.shiftKey||Math.abs(e.deltaX)>Math.abs(e.deltaY)){if(SPAN>=TOTAL)return;const d=Math.sign(e.deltaX||e.deltaY)*Math.max(1,Math.round(SPAN/12));
+    V0=Math.max(0,Math.min(TOTAL-SPAN,V0+d));renderStripes();placeCursor();placeRange();return}
+  const old=SPAN;zoomI=Math.max(0,Math.min(ZOOMS.length-1,zoomI+(e.deltaY<0?1:-1)));
+  const ns=ZOOMS[zoomI]&&ZOOMS[zoomI]<TOTAL?ZOOMS[zoomI]:TOTAL;setView(at-(at-V0)*ns/old+ns/2);renderStripes();placeCursor();placeRange()},{passive:false});
+$('stripes').addEventListener('keydown',e=>{let i=idx(sel.y,sel.m);
+  if(e.shiftKey&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){e.preventDefault();hop(e.key==='ArrowLeft'?-1:1);return}
+  if(e.key==='+'||e.key==='='){e.preventDefault();zoomTo(zoomI+1);return}if(e.key==='-'){e.preventDefault();zoomTo(zoomI-1);return}
+  if(e.key==='ArrowLeft')i--;else if(e.key==='ArrowRight')i++;else if(e.key==='ArrowUp')i+=12;else if(e.key==='ArrowDown')i-=12;else return;
   e.preventDefault();i=Math.max(0,Math.min(TOTAL-1,i));select(Y0+Math.floor(i/12),i%12)});
 $('play').onclick=()=>{
   if(playing){clearInterval(playing);playing=null;$('play').innerHTML=icon('i-play',16);return}
@@ -844,11 +956,11 @@ $('play').onclick=()=>{
 /* ================= dock: charts ================= */
 function svgSize(svg){return{W:svg.clientWidth||300,H:svg.clientHeight||120}}
 function renderProf(){
-  const svg=$('prof'),{W,H}=svgSize(svg),L=36,R=8,T=8,B=20;
+  const svg=$('prof'),{W,H}=svgSize(svg),R=8,T=8,B=20;let L=36;
   const cols=MONTHS.map((_,m)=>{const o=[];for(let y=Y0;y<=Y1;y++)o.push(area.d[y][m]);return o});
   const p25=cols.map(c=>q(c,.25)),p75=cols.map(c=>q(c,.75)),med=cols.map(median);
   const yr=MONTHS.map((_,m)=>val(area,sel.y,m));
-  const mx=Math.max(...p75,...yr.filter(v=>v!=null),1)*1.08,x=m=>L+(W-L-R)*(m+.5)/12,y=v=>T+(H-T-B)*(1-v/mx);
+  const mx=Math.max(...p75,...yr.filter(v=>v!=null),1)*1.08;L=axisL(mx);const x=m=>L+(W-L-R)*(m+.5)/12,y=v=>T+(H-T-B)*(1-v/mx);
   let h='';[0,.5,1].forEach(f=>{const v=Math.round(mx*f);h+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--border)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v>=1000?Math.round(v/100)/10+'k':v}</text>`});
   h+=`<path d="M${p75.map((v,m)=>`${x(m)},${y(v)}`).join('L')}L${p25.map((v,m)=>`${x(m)},${y(v)}`).reverse().join('L')}Z" fill="var(--surface-3)"/>`;
   h+=`<path d="M${med.map((v,m)=>`${x(m)},${y(v)}`).join('L')}" fill="none" stroke="var(--text-3)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
@@ -859,16 +971,18 @@ function renderProf(){
   svg.innerHTML=h;$('profTitle').innerHTML=`Season profile · <span style="color:#E8590C">${sel.y}</span> vs normal range`;
 }
 function renderAnnual(){
-  const svg=$('annual'),{W,H}=svgSize(svg),L=36,R=8,T=8,B=20,ys=[];
+  const svg=$('annual'),{W,H}=svgSize(svg),R=8,T=8,B=20,ys=[];let L=36;
   for(let y=Y0;y<=CY;y++){let s=0,sl=0,sh=0;for(let m=0;m<12;m++){const v=val(area,y,m);if(v!=null){s+=v;sl+=lo(area,y,m);sh+=hi(area,y,m)}}ys.push([y,s,sl,sh])}
-  const mx=Math.max(...ys.map(v=>isEra(v[0])?v[3]:v[1]),1)*1.05,bw=(W-L-R)/ys.length,y=v=>T+(H-T-B)*(1-v/mx);
+  const mx=Math.max(...ys.map(v=>isEra(v[0])?v[3]:v[1]),1)*1.05;L=axisL(mx);const bw=(W-L-R)/ys.length,y=v=>T+(H-T-B)*(1-v/mx);
   const top3=[...ys].filter(v=>v[0]<CY).sort((a,b)=>b[1]-a[1]).slice(0,3).map(v=>v[0]);
   let h=`<defs><pattern id="hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="var(--surface-3)"/><line x1="0" y1="0" x2="0" y2="4" stroke="var(--text-3)" stroke-width="1" opacity=".5"/></pattern></defs>`;
   [0,.5,1].forEach(f=>{const v=Math.round(mx*f);h+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--border)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v>=1000?Math.round(v/100)/10+'k':v}</text>`});
   ys.forEach(([yy,v,vl,vh],i)=>{const x=L+i*bw+1,w=Math.max(1,bw-2),isSel=yy===sel.y,modis=isEra(yy),ytd=yy===CY;
     const fill=isSel?'#E8590C':top3.includes(yy)?'var(--text-2)':modis?'url(#hatch)':'var(--surface-3)';
     h+=`<rect x="${x}" y="${y(v)}" width="${w}" height="${H-B-y(v)}" rx="1.5" fill="${ytd&&!isSel?'none':fill}" ${ytd?'stroke="var(--text-3)" stroke-dasharray="2 2"':''} data-tip="${yy}${ytd?' so far':''}: ${v.toLocaleString()} hotspots${modis?` (estimate ${vl.toLocaleString()}–${vh.toLocaleString()})`:''}${top3.includes(yy)?' · top 3 year':''}" data-year="${yy}" style="cursor:pointer"/>`;
-    if((yy-1)%5===0||yy===CY)h+=`<text x="${x+w/2}" y="${H-4}" text-anchor="middle" ${isSel?'style="fill:var(--text);font-weight:600"':''}>${String(yy).slice(2)==='01'||yy===CY?yy:"'"+String(yy).slice(2)}</text>`});
+    });
+  const lab=yy=>({t:yy===Y0||yy===CY?String(yy):"'"+String(yy).slice(2),x:L+(yy-Y0)*bw+bw/2,bold:yy===sel.y});
+  h+=placeLabels(W,L-2,H-4,[lab(Y0),lab(CY),...(sel.y!==Y0&&sel.y!==CY?[lab(sel.y)]:[]),...ys.map(v=>v[0]).filter(yy=>(yy-Y0)%5===0&&yy!==Y0).map(lab)],12,4,2);
   svg.innerHTML=h;
   svg.querySelectorAll('[data-year]').forEach(r=>r.onclick=()=>{const yy=+r.dataset.year;select(yy,isFuture(yy,sel.m)?NOW_M:sel.m)});
 }
@@ -888,7 +1002,8 @@ const rgLabel=()=>{const a=ymOf(RG.a),b=ymOf(RG.b);return RG.a===RG.b?`${FULL[a.
 const rgDates=()=>{const a=ymOf(RG.a),b=ymOf(RG.b);return[dayStr(a.y,a.m,1),dayStr(b.y,b.m,isPartial(b.y,b.m)?NOW_D:daysIn(b.y,b.m))]};
 function setRange(a,b,quiet){a=Math.max(0,Math.min(TOTAL-1,a));b=Math.max(0,Math.min(TOTAL-1,b));if(a>b)[a,b]=[b,a];RG={a,b};
   $('rgFrom').value=ymStr(a);$('rgTo').value=ymStr(b);placeRange();if(!quiet){renderRangeSum();announce()}}
-function placeRange(){const r=$('rband');r.style.left=`${100*RG.a/TOTAL}%`;r.style.width=`calc(${100*(RG.b-RG.a+1)/TOTAL}%)`;
+function placeRange(){if(!RG||!SPAN)return;const r=$('rband'),a=Math.max(RG.a,V0),b=Math.min(RG.b,V0+SPAN-1);r.hidden=a>b;
+  r.style.left=`${pos(a)}%`;r.style.width=`${100*(b-a+1)/SPAN}%`;
   r.title=`Report range: ${rgLabel()}`}
 const parseMonth=s=>{const m=/^(\d{4})-(\d{2})$/.exec(s||'');return m?idx(+m[1],+m[2]-1):null};
 $('rgFrom').onchange=()=>{const a=parseMonth($('rgFrom').value);if(a!=null)setRange(a,RG.b);else setRange(RG.a,RG.b)};
@@ -1091,10 +1206,11 @@ async function renderMethod(){
   const mx=Math.max(1,...A.map(o=>Math.max(o.modis,o.viirs,o.harm)))*1.08,x=i=>L+(W-L-R)*i/Math.max(1,n-1),y=v=>T+(Hh-T-B)*(1-v/mx);
   const line=(f,col,w,dash,from)=>{const pts=A.map((o,i)=>[i,f(o),o]).filter(p=>p[2].y>=(from||0));return`<path d="M${pts.map(p=>`${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('L')}" fill="none" stroke="${col}" stroke-width="${w}" ${dash?`stroke-dasharray="${dash}"`:''}/>`};
   let h='';[0,.5,1].forEach(f=>{const v=Math.round(mx*f);h+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--border)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v>=1000?Math.round(v/100)/10+'k':v}</text>`});
-  const sx=x(A.findIndex(o=>o.y===ERA_END+1));if(sx)h+=`<line x1="${sx}" x2="${sx}" y1="${T}" y2="${Hh-B}" stroke="var(--text-3)" stroke-dasharray="2 3"/><text x="${sx+4}" y="${T+10}">VIIRS reference</text>`;
+  const sx=x(A.findIndex(o=>o.y===ERA_END+1));if(sx)h+=`<line x1="${sx}" x2="${sx}" y1="${T}" y2="${Hh-B}" stroke="var(--text-3)" stroke-dasharray="2 3"/>`+placeLabels(W,L,T+10,[{t:'VIIRS reference',x:sx+4,align:'start'}],11);
   h+=line(o=>o.modis,'var(--text-3)',1.5,'4 3')+line(o=>o.viirs,'#E8590C',2,null,ERA_END+1)+line(o=>o.harm,'var(--text)',2.5);
   A.forEach((o,i)=>{h+=`<rect x="${x(i)-4}" y="${T}" width="8" height="${Hh-T-B}" fill="transparent" data-tip="${o.y}: harmonized ${o.harm.toLocaleString()} · VIIRS ${o.viirs.toLocaleString()} · MODIS ${o.modis.toLocaleString()}"/>`;
-    if((o.y-1)%5===0||i===n-1)h+=`<text x="${x(i)}" y="${Hh-4}" text-anchor="middle">${o.y}</text>`});
+  });
+  h+=placeLabels(W,L-2,Hh-4,[0,n-1,...A.map((o,i)=>i).filter(i=>(A[i].y-1)%5===0)].map(i=>({t:String(A[i].y),x:x(i)})),11,4,2);
   svg.innerHTML=h;
   const ov=$('mOver');if(!V.ok){ov.innerHTML='';$('mTab').innerHTML='';$('mOverTitle').textContent='Overlap years: not enough fires to compare';return}
   // Monthly overlap: observed VIIRS bars vs MODIS × leave-one-out ratio.
